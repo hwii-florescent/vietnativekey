@@ -196,6 +196,7 @@ struct PerAppProfileRow: View {
                     Text("Tự động").tag(0)
                     Text("Bật").tag(1)
                     Text("Tắt").tag(-1)
+                    Text("Game").tag(-2)
                 }
                 profilePicker("Kiểu Inject", selection: injectionBinding, width: 110) {
                     ForEach(InjectionOverride.allCases, id: \.rawValue) { Text($0.name).tag($0.rawValue) }

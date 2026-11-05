@@ -146,7 +146,7 @@ fi
 if [ "$SIGN_APP" = true ]; then
     if [ -z "$APPLE_SIGNING_IDENTITY" ]; then
         # Try to find Developer ID certificate automatically
-        APPLE_SIGNING_IDENTITY=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)".*/\1/' || echo "")
+        APPLE_SIGNING_IDENTITY=$(security find-identity -v -p codesigning | grep -E "Developer ID Application|Apple Development" | head -1 | sed 's/.*"\(.*\)".*/\1/' || echo "")
 
         if [ -z "$APPLE_SIGNING_IDENTITY" ]; then
             echo "Error: No Developer ID Application certificate found in Keychain."
@@ -190,6 +190,7 @@ if [ -d "GoNhanh.xcodeproj" ]; then
             -derivedDataPath "$(pwd)/build/DerivedData" \
             MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="$VERSION" \
+            ARCHS="$(lipo -archs libgonhanh_core.a)" \
             CODE_SIGN_IDENTITY="$APPLE_SIGNING_IDENTITY" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             CODE_SIGN_STYLE="Manual" \
@@ -204,6 +205,7 @@ if [ -d "GoNhanh.xcodeproj" ]; then
             -derivedDataPath "$(pwd)/build/DerivedData" \
             MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="$VERSION" \
+            ARCHS="$(lipo -archs libgonhanh_core.a)" \
             2>&1 | grep -v "Using the first of multiple matching destinations"
     fi
 
@@ -223,7 +225,7 @@ if [ -d "GoNhanh.xcodeproj" ]; then
         echo "Signed with Developer ID: $APPLE_SIGNING_IDENTITY"
     else
         # Use Developer ID cert if available, fallback to ad-hoc
-        DEV_CERT=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed 's/.*"\(.*\)".*/\1/' || echo "")
+        DEV_CERT=$(security find-identity -v -p codesigning | grep -E "Developer ID Application|Apple Development" | head -1 | sed 's/.*"\(.*\)".*/\1/' || echo "")
         if [ -n "$DEV_CERT" ]; then
             codesign --force --deep --sign "$DEV_CERT" \
                 --entitlements GoNhanh.entitlements \

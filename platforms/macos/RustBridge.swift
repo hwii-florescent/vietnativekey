@@ -1554,6 +1554,15 @@ private func keyboardCallback(
         return nil
     }
 
+    // Game profile: while off, keys go straight to the game (no engine, no shortcuts, no AX).
+    // While toggled on for chat, Enter (send) / Esc (close) drops back to passthrough.
+    if DetectionCache.activeProfile?.enabledState == -2 {
+        if !AppState.shared.isEnabled { return Unmanaged.passUnretained(event) }
+        if keyCode == KeyCode.esc || keyCode == 0x24 || keyCode == 0x4C {
+            DispatchQueue.main.async { AppState.shared.isEnabled = false }
+        }
+    }
+
     // Compute modifier states early - needed for Enter handling and later processing
     let shift = flags.contains(.maskShift)
     let caps = shift || flags.contains(.maskAlphaShift)
@@ -2377,7 +2386,7 @@ class PerAppModeManager {
         // Skip if per-app profile has disabled GN — applyPerAppProfile handles it
         if AppState.shared.advancedMode,
            let profile = AppState.shared.perAppProfiles[bundleId],
-           profile.enabledState == -1
+           profile.enabledState < 0
         {
             return
         }

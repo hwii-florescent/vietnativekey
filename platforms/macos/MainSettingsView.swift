@@ -359,8 +359,8 @@ class AppState: ObservableObject {
             return
         }
 
-        // "Tắt" — disable Vietnamese for this app
-        if profile.enabledState == -1 {
+        // "Tắt" / "Game" — disable Vietnamese for this app (Game: toggle hotkey enables chat)
+        if profile.enabledState < 0 {
             if profileSavedEnabled == nil {
                 profileSavedEnabled = isEnabled
             }

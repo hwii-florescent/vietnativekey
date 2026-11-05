@@ -81,7 +81,7 @@ clean: ## Clean build + settings
 	@cd core && cargo clean
 	@rm -rf platforms/macos/build
 	@rm -rf platforms/linux/build
-	@defaults delete org.gonhanh.GoNhanh 2>/dev/null || true
+	@defaults delete com.hwii.vietnativekey 2>/dev/null || true
 	@osascript -e 'tell application "System Events"' -e 'repeat with i from (count of every login item) to 1 by -1' -e 'set li to login item i' -e 'if name of li is "GoNhanh" and path of li contains "/build/" then delete login item i' -e 'end repeat' -e 'end tell' 2>/dev/null || true
 	@echo "✅ Cleaned build artifacts + settings + all login items"
 
