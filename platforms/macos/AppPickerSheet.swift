@@ -31,19 +31,33 @@ struct AppPickerSheet: View {
     @State private var searchText = ""
     @State private var selectedBundleId: String?
 
+    /// Running apps + every app installed in the standard folders (scanned once on open)
+    private static func scanApps() -> [(name: String, bundleId: String)] {
+        var found: [(name: String, bundleId: String)] = NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil }
+            .map { ($0.localizedName ?? $0.bundleIdentifier!, $0.bundleIdentifier!) }
+        let home = NSHomeDirectory()
+        // ponytail: one level deep only; apps nested in subfolders of these dirs are not listed
+        let dirs = ["/Applications", "/Applications/Utilities", "/System/Applications",
+                    "/System/Applications/Utilities", "\(home)/Applications"]
+        for dir in dirs {
+            let urls = (try? FileManager.default.contentsOfDirectory(
+                at: URL(fileURLWithPath: dir), includingPropertiesForKeys: nil)) ?? []
+            for url in urls where url.pathExtension == "app" {
+                guard let bid = Bundle(url: url)?.bundleIdentifier else { continue }
+                found.append((url.deletingPathExtension().lastPathComponent, bid))
+            }
+        }
+        return found
+    }
+
+    @State private var allApps = AppPickerSheet.scanApps()
+
     private var runningApps: [(name: String, bundleId: String)] {
         var seen = Set<String>()
-        return NSWorkspace.shared.runningApplications
-            .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil }
-            .compactMap { app -> (name: String, bundleId: String)? in
-                guard let bid = app.bundleIdentifier,
-                      !existingBundleIds.contains(bid), seen.insert(bid).inserted
-                else { return nil }
-                let name = app.localizedName
-                    ?? bid.components(separatedBy: ".").last
-                    ?? bid
-                return (name, bid)
-            }
+        return allApps
+            .filter { !existingBundleIds.contains($0.bundleId) && $0.bundleId != Bundle.main.bundleIdentifier
+                && seen.insert($0.bundleId).inserted }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
