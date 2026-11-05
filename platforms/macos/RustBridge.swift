@@ -2052,11 +2052,16 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
         "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
         "com.apple.Terminal", "com.googlecode.iterm2", "io.alacritty",
         "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby",
-        "com.raphaelamorim.rio", "com.termius-dmg.mac", "dev.hwii.perch",
+        "com.raphaelamorim.rio", "com.termius-dmg.mac",
         "com.googlecode.iterm2.beta", "app.warp.Warp", "com.github.wez.wezterm-nightly",
         // Other code editors
         "dev.zed.Zed", "com.sublimetext.4", "com.sublimetext.3", "com.panic.Nova",
     ]
+    // xterm.js terminals read only ONE character from a multi-char key event, so a word restore
+    // (e.g. "text") gets mangled. Send it one key per character instead.
+    if ["dev.hwii.perch", "co.zeit.hyper", "org.tabby"].contains(bundleId) {
+        return cached(.charByChar, (8000, 25000, 8000), "char:xterm.js")
+    }
     if codeApps.contains(bundleId) {
         return cached(.slow, (8000, 25000, 8000), "slow:code")
     }
