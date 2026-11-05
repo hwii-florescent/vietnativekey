@@ -2059,7 +2059,8 @@ private func detectMethod() -> (InjectionMethod, (UInt32, UInt32, UInt32)) {
     ]
     // xterm.js terminals read only ONE character from a multi-char key event, so a word restore
     // (e.g. "text") gets mangled. Send it one key per character instead.
-    if ["dev.hwii.perch", "co.zeit.hyper", "org.tabby"].contains(bundleId) {
+    // (Perch handles multi-char input itself now, so it uses the default fast path.)
+    if ["co.zeit.hyper", "org.tabby"].contains(bundleId) {
         return cached(.charByChar, (8000, 25000, 8000), "char:xterm.js")
     }
     if codeApps.contains(bundleId) {
