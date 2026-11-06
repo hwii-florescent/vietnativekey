@@ -1677,8 +1677,13 @@ private func keyboardCallback(
         // Engine returned none - try to restore word from screen
         // This handles: "chào " + backspace to delete space and enter word
         // Skip restore if just clicked (user may be deleting a selection)
-        if !skipWordRestoreAfterClick, let word = getWordToRestoreOnBackspace() {
-            Log.info("restoreWord from screen: '\(word)'")
+        // Terminals (and xterm.js apps like Perch) expose stale/whole-screen text via AX, so the
+        // "word before cursor" is wrong and corrupts the next word. Skip the screen restore there.
+        let terminalIds: Set = ["dev.hwii.perch", "com.apple.Terminal", "com.googlecode.iterm2",
+                                "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
+                                "io.alacritty", "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby"]
+        let inTerminal = PerAppModeManager.shared.getCurrentBundleId().map(terminalIds.contains) ?? false
+        if !inTerminal, !skipWordRestoreAfterClick, let word = getWordToRestoreOnBackspace() {
             RustBridge.restoreWord(word)
         }
         // Don't reset skipWordRestoreAfterClick here - keep skipping until a real letter is typed
