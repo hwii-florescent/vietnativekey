@@ -602,6 +602,14 @@ private let FLAG_KEY_CONSUMED: UInt8 = 0x01 // Key was consumed by shortcut, don
 @_silgen_name("ime_key_with_char") private func ime_key_with_char(_ key: UInt16, _ caps: Bool, _ ctrl: Bool, _ shift: Bool, _ charCode: UInt32) -> UnsafeMutablePointer<ImeResult>?
 @_silgen_name("ime_method") private func ime_method(_ method: UInt8)
 @_silgen_name("ime_enabled") private func ime_enabled(_ enabled: Bool)
+@_silgen_name("ime_ambiguous_default_english") private func ime_ambiguous_default_english(_ english: Bool)
+
+/// Terminal apps (incl. xterm.js ones). Almost everything typed there is English, and AX text is unreliable.
+private let terminalBundleIds: Set<String> = [
+    "dev.hwii.perch", "com.apple.Terminal", "com.googlecode.iterm2",
+    "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
+    "io.alacritty", "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby",
+]
 @_silgen_name("ime_skip_w_shortcut") private func ime_skip_w_shortcut(_ skip: Bool)
 @_silgen_name("ime_bracket_shortcut") private func ime_bracket_shortcut(_ enabled: Bool)
 @_silgen_name("ime_esc_restore") private func ime_esc_restore(_ enabled: Bool)
@@ -1679,10 +1687,7 @@ private func keyboardCallback(
         // Skip restore if just clicked (user may be deleting a selection)
         // Terminals (and xterm.js apps like Perch) expose stale/whole-screen text via AX, so the
         // "word before cursor" is wrong and corrupts the next word. Skip the screen restore there.
-        let terminalIds: Set = ["dev.hwii.perch", "com.apple.Terminal", "com.googlecode.iterm2",
-                                "dev.warp.Warp-Stable", "com.mitchellh.ghostty", "net.kovidgoyal.kitty",
-                                "io.alacritty", "com.github.wez.wezterm", "co.zeit.hyper", "org.tabby"]
-        let inTerminal = PerAppModeManager.shared.getCurrentBundleId().map(terminalIds.contains) ?? false
+        let inTerminal = PerAppModeManager.shared.getCurrentBundleId().map(terminalBundleIds.contains) ?? false
         if !inTerminal, !skipWordRestoreAfterClick, let word = getWordToRestoreOnBackspace() {
             RustBridge.restoreWord(word)
         }
@@ -2371,6 +2376,8 @@ class PerAppModeManager {
 
         Log.refresh() // Re-check debug log file existence on app switch
         RustBridge.clearBuffer()
+        // Words valid in both languages (is/í, or/ỏ): English by default in terminals, Vietnamese elsewhere
+        ime_ambiguous_default_english(terminalBundleIds.contains(bundleId))
         clearDetectionCache() // Clear injection method cache on app switch
 
         // Snapshot per-app profile for keystroke hot path (thread-safe read)

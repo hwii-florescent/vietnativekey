@@ -263,6 +263,17 @@ pub extern "C" fn ime_english_auto_restore(enabled: bool) {
     }
 }
 
+/// Set what a word valid in both English and Vietnamese (is/í, or/ỏ) becomes when the line
+/// gives no language context: `english` true = keep English (terminals), false = Vietnamese.
+/// No-op if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_ambiguous_default_english(english: bool) {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.set_ambiguous_default_english(english);
+    }
+}
+
 /// Enable/disable auto-capitalize after sentence-ending punctuation.
 ///
 /// When `enabled` is true, automatically capitalizes the first letter
