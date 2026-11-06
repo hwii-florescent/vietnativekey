@@ -287,6 +287,10 @@ pub struct Engine {
     lang_ctx: Vec<bool>,
     /// What an ambiguous word becomes when `lang_ctx` has no votes (true = English).
     ambiguous_default_english: bool,
+    /// Consecutive ambiguous words kept Vietnamese so far, each followed by one space:
+    /// (chars shown on screen, raw keystrokes). If the next word is ambiguous too, the run
+    /// is rewritten to English ("thí í" -> "this is"). Cleared by anything else.
+    amb_run: Vec<(usize, Vec<char>)>,
     /// Word history for backspace-after-space feature
     word_history: WordHistory,
     /// Number of spaces typed after committing a word (for backspace tracking)
@@ -391,6 +395,7 @@ impl Engine {
             english_auto_restore: false, // Default: OFF (experimental feature)
             lang_ctx: Vec::new(),
             ambiguous_default_english: false,
+            amb_run: Vec::new(),
             word_history: WordHistory::new(),
             spaces_after_commit: 0,
             pending_breve_pos: None,
@@ -648,6 +653,9 @@ impl Engine {
     /// * `ctrl` - true if Cmd/Ctrl/Alt is pressed (bypasses IME)
     /// * `shift` - true if Shift key is pressed (for symbols like @, #, $)
     pub fn on_key_ext(&mut self, key: u16, caps: bool, ctrl: bool, shift: bool) -> Result {
+        if key == keys::DELETE {
+            self.amb_run.clear(); // screen no longer matches what the run remembers
+        }
         // Issue #129: Process shortcuts even when IME is disabled
         // Only bypass completely for Ctrl/Cmd modifier keys
         if ctrl {
@@ -784,8 +792,25 @@ impl Engine {
 
             // Auto-restore: if buffer has transforms but is invalid Vietnamese,
             // restore to raw English (like ESC but triggered by space)
+            if self.buf.is_empty() {
+                self.amb_run.clear(); // double space: run is no longer contiguous
+            }
             self.note_word_for_context();
-            let restore_result = self.try_auto_restore_on_space();
+            let was_ambiguous = self.is_ambiguous_loose();
+            let shown_len = self.buf.len();
+            let raw_word = self.collect_raw_chars();
+            let restore_result = match self.try_ambiguous_run_rewrite() {
+                Some(rewrite) => rewrite,
+                None => self.try_auto_restore_on_space(),
+            };
+            if restore_result.action == 0 && was_ambiguous {
+                self.amb_run.push((shown_len, raw_word));
+                if self.amb_run.len() > 6 {
+                    self.amb_run.remove(0);
+                }
+            } else {
+                self.amb_run.clear();
+            }
 
             // If auto-restore happened, repopulate buffer with plain chars from raw_input
             // This ensures word_history stores the correct restored word (not transformed)
@@ -941,6 +966,7 @@ impl Engine {
                 }
             }
 
+            self.amb_run.clear();
             self.note_word_for_context();
             let restore_result = self.try_auto_restore_on_break();
 
@@ -4702,6 +4728,7 @@ impl Engine {
     pub fn clear_all(&mut self) {
         self.clear();
         self.lang_ctx.clear();
+        self.amb_run.clear();
         self.word_history.clear();
         self.spaces_after_commit = 0;
         // Issue #274: Reset auto-capitalize state on cursor change
@@ -4781,6 +4808,19 @@ impl Engine {
                 .any(|c| c.tone == tone::CIRCUMFLEX || c.tone == tone::HORN || c.stroke)
     }
 
+    /// Looser sibling of `is_ambiguous_word`, used to build runs of such words ("yes or" -> "yé ỏ"):
+    /// an English word that became a valid Vietnamese syllable by tone mark alone, dictionary or not.
+    fn is_ambiguous_loose(&self) -> bool {
+        !self.buf.is_empty()
+            && self.had_any_transform
+            && english_dict::is_english_word(&self.get_raw_input_string())
+            && !self.is_buffer_invalid_vietnamese()
+            && !self
+                .buf
+                .iter()
+                .any(|c| c.tone == tone::CIRCUMFLEX || c.tone == tone::HORN || c.stroke)
+    }
+
     /// Majority of the last three word votes; no votes → the configured default.
     fn ambiguous_prefers_english(&self) -> bool {
         let score: i32 = self
@@ -4797,6 +4837,46 @@ impl Engine {
         }
     }
 
+    /// Current word is ambiguous, kept Vietnamese for lack of context, and directly follows other
+    /// such words ("thí í"): two valid-in-both words with no Vietnamese around them are English.
+    /// Rewrites the whole run (earlier words + this one + the space) to the raw keystrokes.
+    fn try_ambiguous_run_rewrite(&mut self) -> Option<Result> {
+        if self.amb_run.is_empty() || !self.english_auto_restore || !self.is_ambiguous_loose() {
+            return None;
+        }
+        // Only when context gave no lean at all (a lean either way is already handled per word).
+        let score: i32 = self
+            .lang_ctx
+            .iter()
+            .rev()
+            .take(3)
+            .map(|&english| if english { 1 } else { -1 })
+            .sum();
+        if score != 0 {
+            return None;
+        }
+        let mut backspaces = self.buf.len();
+        let mut out: Vec<char> = Vec::new();
+        for (shown, raw) in &self.amb_run {
+            backspaces += shown + 1; // the word and the space after it
+            out.extend(raw);
+            out.push(' ');
+        }
+        out.extend(self.collect_raw_chars());
+        out.push(' ');
+        if backspaces > u8::MAX as usize || out.len() > u8::MAX as usize {
+            return None;
+        }
+        // The rewritten words are English now: let them vote so the line keeps leaning English.
+        for _ in 0..=self.amb_run.len() {
+            self.lang_ctx.push(true);
+        }
+        let excess = self.lang_ctx.len().saturating_sub(3);
+        self.lang_ctx.drain(..excess);
+        self.amb_run.clear();
+        Some(Result::send(backspaces as u8, &out))
+    }
+
     /// Record this finished word's language vote. Ambiguous words don't vote (no self-reinforcing).
     /// Call before auto-restore runs, while the buffer still holds the converted word.
     fn note_word_for_context(&mut self) {
@@ -4806,6 +4886,8 @@ impl Engine {
         let raw = self.get_raw_input_string();
         let vote = if self.should_auto_restore(true).is_some() {
             Some(true)
+        } else if self.is_ambiguous_loose() {
+            None // kept Vietnamese but could be English ("yes" -> "yé"): no vote either way
         } else if self.had_any_transform {
             Some(false)
         } else if english_dict::is_english_word(&raw) && !dictionary::is_vietnamese(&raw, false) {

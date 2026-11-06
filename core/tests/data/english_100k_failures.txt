@@ -1,6 +1,6 @@
 # English 100k Typing Variants Failures
 # Format: WORD \t VARIANT \t EXPECTED \t ACTUAL \t BUFFER
-# Total failures: 395
+# Total failures: 392
 
 been	been	been	bên	bên
 see	see	see	sê	sê
@@ -37,6 +37,7 @@ beef	beef	beef	bề	bêf
 noon	noon	noon	nôn	nôn
 boots	boots	boots	bốt	bôts
 boom	boom	boom	bôm	bôm
+aa	aaa	aa	aaa	âa
 cows	cows	cows	cớ	cơs
 downtown	dowwntowwn	downtown	downtowwn	dơwntơwn
 lawn	lawn	lawn	lăn	lăn
@@ -48,11 +49,13 @@ reef	reef	reef	rề	rêf
 gown	gown	gown	gơn	gơn
 hawk	hawk	hawk	hăk	hăk
 boost	boost	boost	bốt	bôst
+oo	ooo	oo	ooo	ôo
 oo	oo	oo	ô	ô
 teen	teen	teen	tên	tên
 eec	eec	eec	êc	êc
 kuwait	kuwwait	kuwait	kuwwait	kưwait
 downs	downs	downs	dớn	dơns
+ee	eee	ee	eee	êe
 ee	ee	ee	ê	ê
 dow	dow	dow	dơ	dơ
 vow	vow	vow	vơ	vơ
@@ -63,7 +66,6 @@ dee	dee	dee	dê	dê
 vows	vows	vows	vớ	vơs
 sow	sow	sow	sơ	sơ
 loom	loom	loom	lôm	lôm
-ooo	ooo	ooo	oo	ôo
 tow	tow	tow	tơ	tơ
 dd	dd	dd	đ	đ
 reefs	reefs	reefs	rế	rêfs
@@ -76,7 +78,6 @@ een	een	een	ên	ên
 cheers	cheers	cheers	chế	chêrs
 dodd	dodd	dodd	dod	dođ
 nee	nee	nee	nê	nê
-aaa	aaa	aaa	aa	âa
 looms	looms	looms	lốm	lôms
 moors	moors	moors	mố	môrs
 hawks	hawks	hawks	hắk	hăks
@@ -141,7 +142,6 @@ ghee	ghee	ghee	ghê	ghê
 caa	caa	caa	câ	câ
 iaa	iaa	iaa	iâ	iâ
 kuwaiti	kuwwaiti	kuwaiti	kuwwaiti	kưwaiti
-ooze	ooze	ooze	oe	ôze
 sawn	sawn	sawn	săn	săn
 pawns	pawns	pawns	pắn	păns
 cee	ceee	cee	ceee	cêe
@@ -191,6 +191,7 @@ ddc	ddc	ddc	đc	đc
 neem	neem	neem	nêm	nêm
 ooh	ooh	ooh	ôh	ôh
 haan	haan	haan	hân	hân
+soong	sooong	soong	sooong	sôong
 soong	soong	soong	sông	sông
 geer	geeer	geer	geeer	gêer
 ood	ood	ood	ôd	ôd
@@ -216,7 +217,6 @@ taa	taa	taa	tâ	tâ
 aap	aap	aap	âp	âp
 chaffee	chaffee	chaffee	chafee	chaffê
 eeo	eeo	eeo	êo	êo
-ddd	ddd	ddd	dd	đd
 cyclooxygenase	cycloooxygenase	cyclooxygenase	cycloooxygenase	cyclôoxygenase
 kawai	kawwai	kawai	kawwai	kăwai
 haa	haa	haa	hâ	hâ
@@ -228,7 +228,6 @@ veen	veen	veen	vên	vên
 dowson	dowson	dowson	dốn	dơson
 kool	koool	kool	koool	kôol
 boor	boor	boor	bổ	bôr
-eee	eee	eee	ee	êe
 nawaz	nawaz	nawaz	na	năaz
 bylaw	bylaww	bylaw	bylaww	bylăw
 ooooo	ooooooo	ooooo	oooooo	ôôôo
@@ -261,7 +260,6 @@ gaa	gaa	gaa	gâ	gâ
 tycoons	tycooons	tycoons	tycooons	tycôons
 veers	veers	veers	vế	vêrs
 beekeeping	beeekeeeping	beekeeping	beekeeeping	bêekêeping
-oozes	oozes	oozes	oé	ôzes
 toots	toots	toots	tốt	tôts
 hoots	hoots	hoots	hốt	hôts
 thurow	thurow	thurow	thuở	thurơ
@@ -337,7 +335,6 @@ aag	aag	aag	âg	âg
 kawabata	kawwabata	kawabata	kawwabata	kăwabata
 hoon	hoon	hoon	hôn	hôn
 ddi	ddi	ddi	đi	đi
-booz	booz	booz	bo	bôz
 raa	raa	raa	râ	râ
 awn	awn	awn	ăn	ăn
 kootenay	koootenay	kootenay	koootenay	kôotenay
