@@ -295,6 +295,11 @@ pub struct Engine {
     /// (what is on screen, the other form, screen shows English). Lets the flip key swap
     /// them either way. Cleared by the next key, a click or an app switch.
     flip_words: Vec<(Vec<char>, Vec<char>, bool)>,
+    /// Words the user taught with the flip key: typed keys (lowercase) -> true = English.
+    /// Only English-dictionary words ever get in. The latest choice wins, regardless of context.
+    learned: std::collections::HashMap<String, bool>,
+    /// Where `learned` is persisted (append-only "word<TAB>E|V" lines), if set.
+    learn_path: Option<std::path::PathBuf>,
     /// Word history for backspace-after-space feature
     word_history: WordHistory,
     /// Number of spaces typed after committing a word (for backspace tracking)
@@ -404,6 +409,8 @@ impl Engine {
             ambiguous_default_english: false,
             amb_run: Vec::new(),
             flip_words: Vec::new(),
+            learned: std::collections::HashMap::new(),
+            learn_path: None,
             word_history: WordHistory::new(),
             spaces_after_commit: 0,
             pending_breve_pos: None,
@@ -490,6 +497,53 @@ impl Engine {
     /// Set whether to allow foreign consonants (z, w, j, f) as valid initials
     pub fn set_allow_foreign_consonants(&mut self, enabled: bool) {
         self.allow_foreign_consonants = enabled;
+    }
+
+    /// Load the learned words from `path` (and keep appending new ones there). Missing file = empty.
+    /// ponytail: the file only grows (one line per flip); fine for hand-taught words, compact on load
+    /// if it ever matters.
+    pub fn set_learn_file(&mut self, path: &str) {
+        self.learned.clear();
+        if let Ok(text) = std::fs::read_to_string(path) {
+            for line in text.lines() {
+                if let Some((word, v)) = line.split_once('\t') {
+                    self.learned.insert(word.to_string(), v == "E");
+                }
+            }
+        }
+        self.learn_path = Some(path.into());
+    }
+
+    /// Forget everything taught so far (also empties the file).
+    pub fn clear_learned(&mut self) {
+        self.learned.clear();
+        if let Some(path) = &self.learn_path {
+            let _ = std::fs::write(path, "");
+        }
+    }
+
+    /// Number of taught words.
+    pub fn learned_count(&self) -> usize {
+        self.learned.len()
+    }
+
+    /// Remember that `raw` (the typed keys) should be English / Vietnamese from now on.
+    /// Ignores anything that is not a plain English-dictionary word, so nothing else is ever stored.
+    fn learn_word(&mut self, raw: &[char], english: bool) {
+        let word: String = raw.iter().collect::<String>().to_lowercase();
+        if !(2..=24).contains(&word.len())
+            || !word.bytes().all(|b| b.is_ascii_lowercase())
+            || !english_dict::is_english_word_wide(&word)
+        {
+            return;
+        }
+        if let Some(path) = &self.learn_path {
+            use std::io::Write;
+            if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+                let _ = writeln!(f, "{word}\t{}", if english { 'E' } else { 'V' });
+            }
+        }
+        self.learned.insert(word, english);
     }
 
     /// Choose which foreign letters may start a word (bit 0 z, 1 w, 2 j, 3 f). Needs
@@ -828,6 +882,7 @@ impl Engine {
             }
             self.note_word_for_context();
             let was_ambiguous = self.is_ambiguous_loose();
+            let was_clash = was_ambiguous || self.is_english_clash();
             let vn_word: Vec<char> = self.buf.to_full_string().chars().collect();
             let raw_word = self.collect_raw_chars();
             let rewritten = self.try_ambiguous_run_rewrite();
@@ -835,7 +890,7 @@ impl Engine {
                 Some(rewrite) => rewrite,
                 None => self.try_auto_restore_on_space(),
             };
-            if self.flip_words.is_empty() && was_ambiguous {
+            if self.flip_words.is_empty() && was_clash {
                 // Not a run rewrite: one ambiguous word, shown as English (restored) or Vietnamese (kept)
                 let english = restore_result.action != 0;
                 self.flip_words = if english {
@@ -4863,6 +4918,15 @@ impl Engine {
                 .any(|c| c.tone == tone::CIRCUMFLEX || c.tone == tone::HORN || c.stroke)
     }
 
+    /// English word whose Vietnamese reading is valid spelling, tone marks, circumflex or horn alike
+    /// (just->jút, been->bên, how->hơ, cuts->cút). `is_ambiguous_loose` is the plain-tone part of this.
+    fn is_english_clash(&self) -> bool {
+        !self.buf.is_empty()
+            && self.had_any_transform
+            && english_dict::is_english_word_wide(&self.get_raw_input_string())
+            && !self.is_buffer_invalid_vietnamese()
+    }
+
     /// Sum of the last three word votes: > 0 leans English, < 0 leans Vietnamese, 0 = no lean.
     fn lang_score(&self) -> i32 {
         self.lang_ctx
@@ -4957,6 +5021,11 @@ impl Engine {
             word.2 = !word.2;
             self.lang_ctx.push(word.2);
         }
+        // One word flipped by hand is a deliberate lesson; a rewritten run is too context-bound to teach.
+        if let [(shown, other, english)] = &self.flip_words[..] {
+            let (raw, english) = (if *english { shown.clone() } else { other.clone() }, *english);
+            self.learn_word(&raw, english);
+        }
         let excess = self.lang_ctx.len().saturating_sub(3);
         self.lang_ctx.drain(..excess);
         // Screen text changed behind the word history's back: forget it rather than restore a stale word
@@ -5020,6 +5089,26 @@ impl Engine {
         // no mark was ever applied, so the result stays "forr" (not collapsed to "for")
         if !self.had_any_transform {
             return None;
+        }
+
+        // Words the user taught with the flip key win over every rule below.
+        if is_word_complete {
+            if let Some(&english) = self.learned.get(&self.get_raw_input_string()) {
+                return if english { self.build_raw_chars_exact() } else { None };
+            }
+        }
+
+        // English word whose Vietnamese reading is no real word (trays -> tráy): English when the line
+        // leans English (no lean: the per-app default). A Vietnamese word that merely shares its typed keys
+        // with an English one (bên/been, cút/cuts) needs the whole recent line to be English (2+ net votes).
+        if is_word_complete && !self.is_ambiguous_word() && self.is_english_clash() {
+            let plain_tone = !self
+                .buf
+                .iter()
+                .any(|c| c.tone == tone::CIRCUMFLEX || c.tone == tone::HORN || c.stroke);
+            if (plain_tone && self.ambiguous_prefers_english()) || self.lang_score() >= 2 {
+                return self.build_raw_chars_exact();
+            }
         }
 
         // English word that only LOOKS Vietnamese (just -> jút, fist -> fít): the typed keys are a real

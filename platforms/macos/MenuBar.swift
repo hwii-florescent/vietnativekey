@@ -268,6 +268,7 @@ class MenuBarController: NSObject, NSWindowDelegate {
         RustBridge.setAutoCapitalize(appState.autoCapitalize)
         RustBridge.setAllowForeignConsonants(appState.allowForeignConsonants)
         RustBridge.setForeignLetters(appState.foreignLetters)
+        RustBridge.setLearnFile()
 
         // Sync shortcuts and start per-app mode manager
         appState.syncShortcutsToEngine()

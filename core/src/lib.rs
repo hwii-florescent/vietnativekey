@@ -314,6 +314,41 @@ pub extern "C" fn ime_foreign_letters(mask: u8) {
     }
 }
 
+/// Load the words taught with the flip key from `path` (UTF-8, NUL-terminated) and keep
+/// appending new ones there. No-op if engine not initialized.
+///
+/// # Safety
+/// `path` must be a valid NUL-terminated C string.
+#[no_mangle]
+pub unsafe extern "C" fn ime_learn_file(path: *const std::os::raw::c_char) {
+    if path.is_null() {
+        return;
+    }
+    let Ok(path) = std::ffi::CStr::from_ptr(path).to_str() else {
+        return;
+    };
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.set_learn_file(path);
+    }
+}
+
+/// Forget all taught words (and empty the file).
+#[no_mangle]
+pub extern "C" fn ime_learn_clear() {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.clear_learned();
+    }
+}
+
+/// How many words have been taught.
+#[no_mangle]
+pub extern "C" fn ime_learn_count() -> u32 {
+    let guard = lock_engine();
+    guard.as_ref().map_or(0, |e| e.learned_count() as u32)
+}
+
 /// Clear the input buffer.
 ///
 /// Call on word boundaries (space, punctuation).

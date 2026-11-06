@@ -31,7 +31,11 @@ fn all_letters_keeps_old_behaviour() {
         let mut old = Engine::new();
         old.set_english_auto_restore(true);
         old.set_allow_foreign_consonants(true);
-        assert_eq!(run(true, 0b1111, input), type_word(&mut old, input), "{input}");
+        assert_eq!(
+            run(true, 0b1111, input),
+            type_word(&mut old, input),
+            "{input}"
+        );
     }
 }
 

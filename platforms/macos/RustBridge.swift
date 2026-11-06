@@ -605,6 +605,9 @@ private let FLAG_KEY_CONSUMED: UInt8 = 0x01 // Key was consumed by shortcut, don
 @_silgen_name("ime_ambiguous_default_english") private func ime_ambiguous_default_english(_ english: Bool)
 @_silgen_name("ime_flip_last") private func ime_flip_last() -> UnsafeMutablePointer<ImeResult>?
 @_silgen_name("ime_foreign_letters") private func ime_foreign_letters(_ mask: UInt8)
+@_silgen_name("ime_learn_file") private func ime_learn_file(_ path: UnsafePointer<CChar>)
+@_silgen_name("ime_learn_clear") private func ime_learn_clear()
+@_silgen_name("ime_learn_count") private func ime_learn_count() -> UInt32
 
 /// Terminal apps (incl. xterm.js ones). Almost everything typed there is English, and AX text is unreliable.
 private let terminalBundleIds: Set<String> = [
@@ -741,6 +744,25 @@ class RustBridge {
         ime_foreign_letters(mask)
         Log.info("Foreign letters: \(lower)")
     }
+
+    /// Words taught with the flip key (left Option) live here, one line each; only English-dictionary words.
+    static var learnFilePath: String {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("VietNativeKey", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent("learned.tsv").path
+    }
+
+    static func setLearnFile() {
+        ime_learn_file(learnFilePath)
+        Log.info("Learned words: \(ime_learn_count())")
+    }
+
+    static func clearLearned() {
+        ime_learn_clear()
+    }
+
+    static var learnedCount: Int { Int(ime_learn_count()) }
 
     static func clearBuffer() {
         ime_clear()

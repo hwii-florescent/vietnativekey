@@ -650,6 +650,27 @@ struct SettingsRow<Content: View>: View {
     }
 }
 
+/// Words taught with a left-Option flip (e.g. "cuts" stays English): how many, and a way to forget them
+struct LearnedWordsRow: View {
+    @State private var count = RustBridge.learnedCount
+
+    var body: some View {
+        SettingsRow {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Từ đã học").font(.system(size: 13))
+                Text("\(count) từ — bấm Option trái ngay sau từ sai để dạy; chỉ lưu từ tiếng Anh, không rời máy")
+                    .font(.system(size: 11)).foregroundColor(Color(NSColor.secondaryLabelColor))
+            }
+            Spacer()
+            Button("Xoá") {
+                RustBridge.clearLearned()
+                count = RustBridge.learnedCount
+            }
+            .disabled(count == 0)
+        }
+    }
+}
+
 /// Pick which of z/w/j/f may start a word (e.g. z for "zui" but not f, so "for" stays "for")
 struct ForeignLettersRow: View {
     @ObservedObject var appState: AppState
@@ -1116,6 +1137,8 @@ struct SettingsPageView: View {
                     Divider().padding(.leading, 12)
                     ForeignLettersRow(appState: appState)
                 }
+                Divider().padding(.leading, 12)
+                LearnedWordsRow()
                 Divider().padding(.leading, 12)
                 AutoCapitalizeRow(appState: appState)
             }

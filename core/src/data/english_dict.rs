@@ -23,6 +23,25 @@ pub fn is_english_word(word: &str) -> bool {
     DICT.contains(lower.as_str())
 }
 
+/// Frequency-ordered English list; only its top 30k lines are used (the tail is names and junk).
+/// ponytail: embeds the whole 850KB test fixture to avoid keeping a second copy; trim to a 30k file
+/// if binary size ever matters.
+const ENGLISH_FREQUENT: &str = include_str!("../../tests/data/english_100k.txt");
+
+static WIDE: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    ENGLISH_FREQUENT
+        .lines()
+        .take(30_000)
+        .filter(|w| !w.is_empty() && w.bytes().all(|b| b.is_ascii_lowercase()))
+        .collect()
+});
+
+/// Wider check for the "English-looking Vietnamese" rules (trays, nuts, been): the core dictionary
+/// plus the 30k most frequent English words. Case-insensitive.
+pub fn is_english_word_wide(word: &str) -> bool {
+    is_english_word(word) || WIDE.contains(word.to_lowercase().as_str())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
