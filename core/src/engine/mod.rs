@@ -539,7 +539,11 @@ impl Engine {
         }
         if let Some(path) = &self.learn_path {
             use std::io::Write;
-            if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+            if let Ok(mut f) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)
+            {
                 let _ = writeln!(f, "{word}\t{}", if english { 'E' } else { 'V' });
             }
         }
@@ -5023,7 +5027,14 @@ impl Engine {
         }
         // One word flipped by hand is a deliberate lesson; a rewritten run is too context-bound to teach.
         if let [(shown, other, english)] = &self.flip_words[..] {
-            let (raw, english) = (if *english { shown.clone() } else { other.clone() }, *english);
+            let (raw, english) = (
+                if *english {
+                    shown.clone()
+                } else {
+                    other.clone()
+                },
+                *english,
+            );
             self.learn_word(&raw, english);
         }
         let excess = self.lang_ctx.len().saturating_sub(3);
@@ -5094,7 +5105,11 @@ impl Engine {
         // Words the user taught with the flip key win over every rule below.
         if is_word_complete {
             if let Some(&english) = self.learned.get(&self.get_raw_input_string()) {
-                return if english { self.build_raw_chars_exact() } else { None };
+                return if english {
+                    self.build_raw_chars_exact()
+                } else {
+                    None
+                };
             }
         }
 
