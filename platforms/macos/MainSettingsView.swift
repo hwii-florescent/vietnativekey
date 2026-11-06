@@ -173,6 +173,14 @@ class AppState: ObservableObject {
         }
     }
 
+    /// English mode (E): rewrite a finished word that is really Vietnamese typed in Telex
+    @Published var detectVnInEnMode: Bool = true {
+        didSet {
+            UserDefaults.standard.set(detectVnInEnMode, forKey: SettingsKey.detectVnInEnMode)
+            RustBridge.refreshEnDetect()
+        }
+    }
+
     /// Which of z/w/j/f may start a word when foreign consonants are allowed (letters kept in a string)
     @Published var foreignLetters: String = "zwjf" {
         didSet {
@@ -286,6 +294,7 @@ class AppState: ObservableObject {
         soundEnabled = defaults.bool(forKey: SettingsKey.soundEnabled)
         allowForeignConsonants = defaults.bool(forKey: SettingsKey.allowForeignConsonants)
         foreignLetters = defaults.string(forKey: SettingsKey.foreignLetters) ?? "zwjf"
+        detectVnInEnMode = defaults.bool(forKey: SettingsKey.detectVnInEnMode)
         advancedMode = defaults.bool(forKey: SettingsKey.advancedMode)
         disablePanelDetection = defaults.bool(forKey: SettingsKey.disablePanelDetection)
         restartOnClose = defaults.bool(forKey: SettingsKey.restartOnClose)
@@ -658,7 +667,7 @@ struct LearnedWordsRow: View {
         SettingsRow {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Từ đã học").font(.system(size: 13))
-                Text("\(count) từ — bấm Option trái ngay sau từ sai để dạy; chỉ lưu từ tiếng Anh, không rời máy")
+                Text("\(count) từ — bấm Option trái ngay sau từ sai để dạy; chỉ lưu từ bạn đã dạy, không rời máy")
                     .font(.system(size: 11)).foregroundColor(Color(NSColor.secondaryLabelColor))
             }
             Spacer()
@@ -1137,6 +1146,8 @@ struct SettingsPageView: View {
                     Divider().padding(.leading, 12)
                     ForeignLettersRow(appState: appState)
                 }
+                Divider().padding(.leading, 12)
+                SettingsToggleRow("Nhận tiếng Việt khi đang ở chế độ E", subtitle: "Gõ Telex rồi bấm cách: tiếng Việt thật sẽ được đổi, tiếng Anh giữ nguyên", isOn: $appState.detectVnInEnMode)
                 Divider().padding(.leading, 12)
                 LearnedWordsRow()
                 Divider().padding(.leading, 12)

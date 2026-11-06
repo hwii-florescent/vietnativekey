@@ -91,6 +91,8 @@ enum SettingsKey {
     static let allowForeignConsonants = "gonhanh.allowForeignConsonants"
     /// Which of z/w/j/f may start a word when foreign consonants are allowed, e.g. "zj" (default all)
     static let foreignLetters = "gonhanh.foreignLetters"
+    /// In English mode (E), convert finished words that are really Vietnamese typed in Telex
+    static let detectVnInEnMode = "gonhanh.detectVnInEnMode"
     static let advancedMode = "gonhanh.advancedMode"
     static let perAppProfiles = "gonhanh.perAppProfiles"
     static let disablePanelDetection = "gonhanh.disablePanelDetection"

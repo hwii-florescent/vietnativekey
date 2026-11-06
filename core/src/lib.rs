@@ -324,12 +324,23 @@ pub unsafe extern "C" fn ime_learn_file(path: *const std::os::raw::c_char) {
     if path.is_null() {
         return;
     }
-    let Ok(path) = std::ffi::CStr::from_ptr(path).to_str() else {
+    // SAFETY: the caller guarantees `path` is a valid NUL-terminated C string (see # Safety).
+    let Ok(path) = (unsafe { std::ffi::CStr::from_ptr(path) }).to_str() else {
         return;
     };
     let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.set_learn_file(path);
+    }
+}
+
+/// English mode only: convert a finished word (on Space) when its keys read as real Vietnamese
+/// typed in Telex. No effect while Vietnamese mode is on. No-op if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_detect_vn_in_en_mode(enabled: bool) {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.set_detect_vn_in_en_mode(enabled);
     }
 }
 

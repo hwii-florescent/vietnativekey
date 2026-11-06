@@ -296,10 +296,17 @@ pub struct Engine {
     /// them either way. Cleared by the next key, a click or an app switch.
     flip_words: Vec<(Vec<char>, Vec<char>, bool)>,
     /// Words the user taught with the flip key: typed keys (lowercase) -> true = English.
-    /// Only English-dictionary words ever get in. The latest choice wins, regardless of context.
+    /// Only words flipped by hand get in. The latest choice wins, regardless of context.
     learned: std::collections::HashMap<String, bool>,
     /// Where `learned` is persisted (append-only "word<TAB>E|V" lines), if set.
     learn_path: Option<std::path::PathBuf>,
+    /// English mode (`enabled` == false): keys pass through untouched, but when a word ends with Space
+    /// and its keys read as a real Vietnamese word in Telex, rewrite it ("truowfng " -> "trường ").
+    detect_vn_in_en_mode: bool,
+    /// Letters typed in the current word while in English mode (key, caps).
+    en_raw: Vec<(u16, bool)>,
+    /// The current English-mode word touched a digit or punctuation (URL, identifier, path): leave it alone.
+    en_dirty: bool,
     /// Word history for backspace-after-space feature
     word_history: WordHistory,
     /// Number of spaces typed after committing a word (for backspace tracking)
@@ -411,6 +418,9 @@ impl Engine {
             flip_words: Vec::new(),
             learned: std::collections::HashMap::new(),
             learn_path: None,
+            detect_vn_in_en_mode: false,
+            en_raw: Vec::new(),
+            en_dirty: false,
             word_history: WordHistory::new(),
             spaces_after_commit: 0,
             pending_breve_pos: None,
@@ -499,6 +509,81 @@ impl Engine {
         self.allow_foreign_consonants = enabled;
     }
 
+    /// In English mode, convert a finished word that reads as real Vietnamese typed in Telex.
+    pub fn set_detect_vn_in_en_mode(&mut self, on: bool) {
+        self.detect_vn_in_en_mode = on;
+        self.en_raw.clear();
+        self.en_dirty = false;
+    }
+
+    /// English mode, Space pressed after `word`: decide whether those keys were Vietnamese.
+    /// English stays the default: a word is only rewritten when its Telex reading is a real
+    /// Vietnamese dictionary word AND the keys are not an English word (or the line is clearly
+    /// Vietnamese, or the user taught it). Rewrites only on Space, never on Enter or punctuation.
+    /// ponytail: builds a throwaway Engine per candidate word; cache one if profiling ever cares.
+    fn en_mode_on_space(&mut self, word: &[(u16, bool)]) -> Option<Result> {
+        if !self.detect_vn_in_en_mode || word.len() < 2 || word.len() > 24 {
+            return None;
+        }
+        let raw: Vec<char> = word.iter().filter_map(|&(k, c)| utils::key_to_char(k, c)).collect();
+        let lower: String = raw.iter().collect::<String>().to_lowercase();
+        let mut shadow = Engine::new();
+        shadow.method = self.method;
+        shadow.modern_tone = self.modern_tone;
+        shadow.free_tone_enabled = self.free_tone_enabled;
+        shadow.skip_w_shortcut = self.skip_w_shortcut;
+        shadow.bracket_shortcut = self.bracket_shortcut;
+        shadow.allow_foreign_consonants = self.allow_foreign_consonants;
+        shadow.foreign_letters = self.foreign_letters;
+        for &(key, caps) in word {
+            shadow.on_key(key, caps, false);
+        }
+        let vn_str = shadow.buf.to_full_string();
+        if !shadow.had_any_transform
+            || shadow.is_buffer_invalid_vietnamese()
+            || vn_str.to_lowercase() == lower
+        {
+            return None;
+        }
+        let vn: Vec<char> = vn_str.chars().collect();
+        // Two tone keys in one word (vars -> vả -> vá, refs) is code, not Telex: a Vietnamese typist
+        // presses one. Count tone letters the conversion swallowed.
+        let vn_lower = vn_str.to_lowercase();
+        let swallowed: usize = "sfrxj"
+            .chars()
+            .map(|t| {
+                let (typed, kept) = (lower.matches(t).count(), vn_lower.matches(t).count());
+                typed.saturating_sub(kept)
+            })
+            .sum();
+        if swallowed > 1 {
+            return None;
+        }
+        let english_word = english_dict::is_english_word_wide(&lower);
+        let vn_is_word = dictionary::is_vietnamese(&vn_str, shadow.foreign_ok());
+        let convert = match self.learned.get(&lower) {
+            Some(&english) => !english,
+            None => vn_is_word && (!english_word || self.lang_score() <= -2),
+        };
+        if convert || english_word {
+            self.lang_ctx.push(!convert);
+            let excess = self.lang_ctx.len().saturating_sub(3);
+            self.lang_ctx.drain(..excess);
+        }
+        // Either way the left-Option flip can swap this word (and teach the choice)
+        self.flip_words = if convert {
+            vec![(vn.clone(), raw.clone(), false)]
+        } else {
+            vec![(raw, vn.clone(), true)]
+        };
+        if !convert {
+            return None;
+        }
+        let mut out = vn;
+        out.push(' ');
+        Some(Result::send(word.len() as u8, &out))
+    }
+
     /// Load the learned words from `path` (and keep appending new ones there). Missing file = empty.
     /// ponytail: the file only grows (one line per flip); fine for hand-taught words, compact on load
     /// if it ever matters.
@@ -528,13 +613,10 @@ impl Engine {
     }
 
     /// Remember that `raw` (the typed keys) should be English / Vietnamese from now on.
-    /// Ignores anything that is not a plain English-dictionary word, so nothing else is ever stored.
+    /// Only called for a word the user flipped by hand, and only plain letters are stored.
     fn learn_word(&mut self, raw: &[char], english: bool) {
         let word: String = raw.iter().collect::<String>().to_lowercase();
-        if !(2..=24).contains(&word.len())
-            || !word.bytes().all(|b| b.is_ascii_lowercase())
-            || !english_dict::is_english_word_wide(&word)
-        {
+        if !(2..=24).contains(&word.len()) || !word.bytes().all(|b| b.is_ascii_lowercase()) {
             return;
         }
         if let Some(path) = &self.learn_path {
@@ -761,6 +843,11 @@ impl Engine {
 
             // Word boundary keys (Space, Enter): check for word shortcuts
             if key == keys::SPACE || key == keys::RETURN || key == keys::ENTER {
+                let en_word = std::mem::take(&mut self.en_raw);
+                let en_dirty = std::mem::replace(&mut self.en_dirty, false);
+                if key != keys::SPACE {
+                    self.lang_ctx.clear(); // new line, new context
+                }
                 if !self.shortcut_prefix.is_empty() {
                     let input_method = self.current_input_method();
                     if let Some(m) = self.shortcuts.try_match_for_method(
@@ -783,6 +870,11 @@ impl Engine {
                     }
                 }
                 self.shortcut_prefix.clear();
+                if key == keys::SPACE && !en_dirty {
+                    if let Some(rewrite) = self.en_mode_on_space(&en_word) {
+                        return rewrite;
+                    }
+                }
                 return Result::none();
             }
 
@@ -793,11 +885,14 @@ impl Engine {
             // matches on the following Space.
             if key == keys::DELETE {
                 self.shortcut_prefix.pop();
+                self.en_raw.pop();
                 return Result::none();
             }
 
             // Break keys (punctuation): check for immediate shortcuts like "->"
             if keys::is_break_ext(key, shift) {
+                self.en_raw.clear();
+                self.en_dirty = true;
                 if let Some(ch) = break_key_to_char(key, shift) {
                     // Word shortcuts must also fire on punctuation, not only on
                     // Space/Enter. Match the accumulated prefix BEFORE the break
@@ -843,11 +938,19 @@ impl Engine {
             // Letter and number keys: accumulate for word shortcuts (e.g., "btw", "f1", "a1")
             if let Some(ch) = utils::key_to_char(key, caps) {
                 self.shortcut_prefix.push(ch);
+                if !ch.is_ascii_alphabetic() {
+                    self.en_raw.clear();
+                    self.en_dirty = true;
+                } else if !self.en_dirty {
+                    self.en_raw.push((key, caps));
+                }
                 return Result::none();
             }
 
             // Unknown keys: clear shortcut prefix and pass through
             self.shortcut_prefix.clear();
+            self.en_raw.clear();
+            self.en_dirty = true;
             return Result::none();
         }
 
@@ -4705,6 +4808,8 @@ impl Engine {
         }
         self.buf.clear();
         self.raw_input.clear();
+        self.en_raw.clear();
+        self.en_dirty = false;
         self.last_transform = None;
         self.has_non_letter_prefix = false;
         self.pending_breve_pos = None;

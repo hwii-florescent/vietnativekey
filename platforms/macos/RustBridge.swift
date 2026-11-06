@@ -607,6 +607,7 @@ private let FLAG_KEY_CONSUMED: UInt8 = 0x01 // Key was consumed by shortcut, don
 @_silgen_name("ime_foreign_letters") private func ime_foreign_letters(_ mask: UInt8)
 @_silgen_name("ime_learn_file") private func ime_learn_file(_ path: UnsafePointer<CChar>)
 @_silgen_name("ime_learn_clear") private func ime_learn_clear()
+@_silgen_name("ime_detect_vn_in_en_mode") private func ime_detect_vn_in_en_mode(_ enabled: Bool)
 @_silgen_name("ime_learn_count") private func ime_learn_count() -> UInt32
 
 /// Terminal apps (incl. xterm.js ones). Almost everything typed there is English, and AX text is unreliable.
@@ -689,6 +690,16 @@ class RustBridge {
     static func setEnabled(_ enabled: Bool) {
         // GATE: Only enable if input source is allowed, always allow disable
         ime_enabled(enabled && InputSourceObserver.shared.isAllowedInputSource)
+        refreshEnDetect()
+    }
+
+    /// English mode (E): convert finished words that are really Vietnamese typed in Telex.
+    /// Off for non-Vietnamese input sources and apps whose profile is Off or Game. Reads UserDefaults,
+    /// not AppState.shared: this runs while AppState is still initializing.
+    static func refreshEnDetect() {
+        let setting = UserDefaults.standard.bool(forKey: SettingsKey.detectVnInEnMode)
+        let profileOk = (DetectionCache.activeProfile?.enabledState ?? 0) >= 0
+        ime_detect_vn_in_en_mode(setting && profileOk && InputSourceObserver.shared.isAllowedInputSource)
     }
 
     /// Set whether to skip w→ư shortcut in Telex mode
@@ -2458,6 +2469,7 @@ class PerAppModeManager {
 
         // Snapshot per-app profile for keystroke hot path (thread-safe read)
         DetectionCache.activeProfile = AppState.shared.advancedMode ? AppState.shared.perAppProfiles[bundleId] : nil
+        RustBridge.refreshEnDetect()
 
         // Update auto-capitalize state for new app (handles per-app exclusion)
         AppState.shared.updateAutoCapitalizeEngine()
