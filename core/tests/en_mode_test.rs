@@ -26,7 +26,13 @@ fn vietnamese_typed_in_english_mode_is_converted_on_space() {
 
 #[test]
 fn english_stays_english() {
-    for s in ["hello world ", "this is just a test ", "cos las ", "been how now ", "window system "] {
+    for s in [
+        "hello world ",
+        "this is just a test ",
+        "cos las ",
+        "been how now ",
+        "window system ",
+    ] {
         assert_eq!(en(s), s, "{s}");
     }
 }
@@ -34,7 +40,14 @@ fn english_stays_english() {
 #[test]
 fn nothing_changes_until_space_and_never_with_symbols_or_digits() {
     assert_eq!(en("truowfng"), "truowfng"); // no space yet: still raw
-    for s in ["truowfng, ", "truowfng1 ", "a/truowfng ", "user@truowfng ", "x.truowfng ", "truowfng.com "] {
+    for s in [
+        "truowfng, ",
+        "truowfng1 ",
+        "a/truowfng ",
+        "user@truowfng ",
+        "x.truowfng ",
+        "truowfng.com ",
+    ] {
         assert_eq!(en(s), s, "{s}");
     }
     assert_eq!(en("truowfng\n"), "truowfng\n");
@@ -42,7 +55,13 @@ fn nothing_changes_until_space_and_never_with_symbols_or_digits() {
 
 #[test]
 fn code_like_words_are_not_converted() {
-    for s in ["vars args refs sys ", "sudo ls -la ", "git status ", "cd src ", "npm run dev "] {
+    for s in [
+        "vars args refs sys ",
+        "sudo ls -la ",
+        "git status ",
+        "cd src ",
+        "npm run dev ",
+    ] {
         assert_eq!(en(s), s, "{s}");
     }
 }
