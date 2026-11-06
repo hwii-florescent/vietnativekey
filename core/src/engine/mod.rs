@@ -5022,13 +5022,19 @@ impl Engine {
             return None;
         }
 
-        // English word that only LOOKS Vietnamese (just -> jút, fist -> fít, user -> uẻ): the typed keys
-        // are a real English word and the result is not a real Vietnamese word, merely one tone mark
-        // away from valid spelling. Prefer English unless the line is clearly Vietnamese.
+        // English word that only LOOKS Vietnamese (just -> jút, fist -> fít): the typed keys are a real
+        // English word and the result is not a real Vietnamese word, merely one tone mark away from
+        // valid spelling. Prefer English unless the line is clearly Vietnamese.
         if is_word_complete
             && !self.is_ambiguous_word()
             && self.is_ambiguous_loose()
             && self.lang_score() >= 0
+            // Only words that look Vietnamese solely because z/w/j/f were allowed as initials (just,
+            // fist). Other English words follow the older "Vietnamese first when valid" rules.
+            && matches!(
+                self.buf.get(0).map(|c| c.key),
+                Some(keys::Z | keys::W | keys::J | keys::F)
+            )
         {
             return self.build_raw_chars_exact();
         }
