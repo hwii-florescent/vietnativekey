@@ -603,6 +603,7 @@ private let FLAG_KEY_CONSUMED: UInt8 = 0x01 // Key was consumed by shortcut, don
 @_silgen_name("ime_method") private func ime_method(_ method: UInt8)
 @_silgen_name("ime_enabled") private func ime_enabled(_ enabled: Bool)
 @_silgen_name("ime_ambiguous_default_english") private func ime_ambiguous_default_english(_ english: Bool)
+@_silgen_name("ime_flip_last") private func ime_flip_last() -> UnsafeMutablePointer<ImeResult>?
 
 /// Terminal apps (incl. xterm.js ones). Almost everything typed there is English, and AX text is unreliable.
 private let terminalBundleIds: Set<String> = [
@@ -733,6 +734,21 @@ class RustBridge {
 
     static func clearBuffer() {
         ime_clear()
+    }
+
+    /// Swap the ambiguous word(s) just committed between English and Vietnamese (is <-> í).
+    /// nil when there is nothing to flip.
+    static func flipLast() -> (Int, [Character])? {
+        guard isInitialized, let ptr = ime_flip_last() else { return nil }
+        defer { ime_free(ptr) }
+        let r = ptr.pointee
+        guard r.action == 1 else { return nil }
+        let chars = withUnsafePointer(to: r.chars) { p in
+            p.withMemoryRebound(to: UInt32.self, capacity: 256) { bound in
+                (0 ..< Int(r.count)).compactMap { Unicode.Scalar(bound[$0]).map(Character.init) }
+            }
+        }
+        return (Int(r.backspace), chars)
     }
 
     /// Clear buffer and word history (use on mouse click, focus change)
@@ -1414,6 +1430,12 @@ private func triggerRestoreShortcut(flags: CGEventFlags, proxy: CGEventTapProxy)
     // Don't bypass IME for restore shortcut - modifiers are part of the shortcut itself
     // Always pass ctrl=false so engine performs the restore action
     let (method, delays) = detectMethod()
+    // Right after finishing a word that is valid in both languages (is/í): swap it, either way.
+    if let (bs, chars) = RustBridge.flipLast() {
+        Log.info("flip: bs=\(bs) text='\(String(chars))'")
+        sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)
+        return
+    }
     if let (bs, chars, _) = RustBridge.processKey(keyCode: UInt16(KeyCode.esc), caps: caps, ctrl: false, shift: shift) {
         Log.key(UInt16(KeyCode.esc), "restore: bs=\(bs) chars='\(String(chars))'")
         sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)

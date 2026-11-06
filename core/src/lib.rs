@@ -312,6 +312,7 @@ pub extern "C" fn ime_clear() {
     let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.clear();
+        e.clear_flip();
     }
 }
 
@@ -325,6 +326,21 @@ pub extern "C" fn ime_clear_all() {
     let mut guard = lock_engine();
     if let Some(ref mut e) = *guard {
         e.clear_all();
+    }
+}
+
+/// Flip the ambiguous word(s) just committed between English and Vietnamese (is <-> í).
+///
+/// Returns a `Result` to apply (caller must free with `ime_free`); its `action` is 0 when there is
+/// nothing to flip (a key was typed since, or the last word was not ambiguous).
+/// `null` if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_flip_last() -> *mut Result {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        Box::into_raw(Box::new(e.flip_last_ambiguous()))
+    } else {
+        std::ptr::null_mut()
     }
 }
 

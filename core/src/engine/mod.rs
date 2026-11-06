@@ -288,9 +288,13 @@ pub struct Engine {
     /// What an ambiguous word becomes when `lang_ctx` has no votes (true = English).
     ambiguous_default_english: bool,
     /// Consecutive ambiguous words kept Vietnamese so far, each followed by one space:
-    /// (chars shown on screen, raw keystrokes). If the next word is ambiguous too, the run
+    /// (Vietnamese form, raw keystrokes). If the next word is ambiguous too, the run
     /// is rewritten to English ("thí í" -> "this is"). Cleared by anything else.
-    amb_run: Vec<(usize, Vec<char>)>,
+    amb_run: Vec<(Vec<char>, Vec<char>)>,
+    /// The ambiguous word(s) just committed, each followed by one space, as
+    /// (what is on screen, the other form, screen shows English). Lets the flip key swap
+    /// them either way. Cleared by the next key, a click or an app switch.
+    flip_words: Vec<(Vec<char>, Vec<char>, bool)>,
     /// Word history for backspace-after-space feature
     word_history: WordHistory,
     /// Number of spaces typed after committing a word (for backspace tracking)
@@ -396,6 +400,7 @@ impl Engine {
             lang_ctx: Vec::new(),
             ambiguous_default_english: false,
             amb_run: Vec::new(),
+            flip_words: Vec::new(),
             word_history: WordHistory::new(),
             spaces_after_commit: 0,
             pending_breve_pos: None,
@@ -653,6 +658,7 @@ impl Engine {
     /// * `ctrl` - true if Cmd/Ctrl/Alt is pressed (bypasses IME)
     /// * `shift` - true if Shift key is pressed (for symbols like @, #, $)
     pub fn on_key_ext(&mut self, key: u16, caps: bool, ctrl: bool, shift: bool) -> Result {
+        self.flip_words.clear(); // any key moves on from the last committed word
         if key == keys::DELETE {
             self.amb_run.clear(); // screen no longer matches what the run remembers
         }
@@ -797,14 +803,24 @@ impl Engine {
             }
             self.note_word_for_context();
             let was_ambiguous = self.is_ambiguous_loose();
-            let shown_len = self.buf.len();
+            let vn_word: Vec<char> = self.buf.to_full_string().chars().collect();
             let raw_word = self.collect_raw_chars();
-            let restore_result = match self.try_ambiguous_run_rewrite() {
+            let rewritten = self.try_ambiguous_run_rewrite();
+            let restore_result = match rewritten {
                 Some(rewrite) => rewrite,
                 None => self.try_auto_restore_on_space(),
             };
+            if self.flip_words.is_empty() && was_ambiguous {
+                // Not a run rewrite: one ambiguous word, shown as English (restored) or Vietnamese (kept)
+                let english = restore_result.action != 0;
+                self.flip_words = if english {
+                    vec![(raw_word.clone(), vn_word.clone(), true)]
+                } else {
+                    vec![(vn_word.clone(), raw_word.clone(), false)]
+                };
+            }
             if restore_result.action == 0 && was_ambiguous {
-                self.amb_run.push((shown_len, raw_word));
+                self.amb_run.push((vn_word, raw_word));
                 if self.amb_run.len() > 6 {
                     self.amb_run.remove(0);
                 }
@@ -4729,6 +4745,7 @@ impl Engine {
         self.clear();
         self.lang_ctx.clear();
         self.amb_run.clear();
+        self.flip_words.clear();
         self.word_history.clear();
         self.spaces_after_commit = 0;
         // Issue #274: Reset auto-capitalize state on cursor change
@@ -4857,16 +4874,21 @@ impl Engine {
         }
         let mut backspaces = self.buf.len();
         let mut out: Vec<char> = Vec::new();
-        for (shown, raw) in &self.amb_run {
-            backspaces += shown + 1; // the word and the space after it
+        let mut flip: Vec<(Vec<char>, Vec<char>, bool)> = Vec::new();
+        for (vn, raw) in &self.amb_run {
+            backspaces += vn.len() + 1; // the word and the space after it
             out.extend(raw);
             out.push(' ');
+            flip.push((raw.clone(), vn.clone(), true));
         }
-        out.extend(self.collect_raw_chars());
+        let raw_now = self.collect_raw_chars();
+        out.extend(&raw_now);
         out.push(' ');
+        flip.push((raw_now, self.buf.to_full_string().chars().collect(), true));
         if backspaces > u8::MAX as usize || out.len() > u8::MAX as usize {
             return None;
         }
+        self.flip_words = flip;
         // The rewritten words are English now: let them vote so the line keeps leaning English.
         for _ in 0..=self.amb_run.len() {
             self.lang_ctx.push(true);
@@ -4875,6 +4897,44 @@ impl Engine {
         self.lang_ctx.drain(..excess);
         self.amb_run.clear();
         Some(Result::send(backspaces as u8, &out))
+    }
+
+    /// Swap the ambiguous word(s) just committed between English and Vietnamese (flip key).
+    /// Only valid right after the space, before any other key. The user's choice also votes,
+    /// so later ambiguous words on the line follow it. Flipping again swaps back.
+    pub fn flip_last_ambiguous(&mut self) -> Result {
+        if self.flip_words.is_empty() {
+            return Result::none();
+        }
+        let mut backspaces = 0usize;
+        let mut out: Vec<char> = Vec::new();
+        for (shown, other, _) in &self.flip_words {
+            backspaces += shown.len() + 1; // the word and its space
+            out.extend(other);
+            out.push(' ');
+        }
+        if backspaces > u8::MAX as usize || out.len() > u8::MAX as usize {
+            self.flip_words.clear();
+            return Result::none();
+        }
+        for word in &mut self.flip_words {
+            std::mem::swap(&mut word.0, &mut word.1);
+            word.2 = !word.2;
+            self.lang_ctx.push(word.2);
+        }
+        let excess = self.lang_ctx.len().saturating_sub(3);
+        self.lang_ctx.drain(..excess);
+        // Screen text changed behind the word history's back: forget it rather than restore a stale word
+        self.word_history.clear();
+        self.spaces_after_commit = 0;
+        self.amb_run.clear();
+        Result::send(backspaces as u8, &out)
+    }
+
+    /// Forget the just-committed words (click, app switch, shortcut): the screen may no longer match.
+    pub fn clear_flip(&mut self) {
+        self.flip_words.clear();
+        self.amb_run.clear();
     }
 
     /// Record this finished word's language vote. Ambiguous words don't vote (no self-reinforcing).

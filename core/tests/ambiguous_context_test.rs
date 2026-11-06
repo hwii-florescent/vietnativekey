@@ -95,6 +95,77 @@ fn backspace_forgets_the_run() {
     assert_eq!(out, "í ");
 }
 
+/// Apply a flip to the screen text the way the macOS app would; returns false if nothing to flip
+fn flip(e: &mut Engine, screen: &mut String) -> bool {
+    let r = e.flip_last_ambiguous();
+    if r.action != 1 {
+        return false;
+    }
+    for _ in 0..r.backspace {
+        screen.pop();
+    }
+    for i in 0..r.count as usize {
+        screen.push(char::from_u32(r.chars[i]).unwrap());
+    }
+    true
+}
+
+fn engine(default_english: bool) -> Engine {
+    let mut e = Engine::new();
+    e.set_english_auto_restore(true);
+    e.set_ambiguous_default_english(default_english);
+    e
+}
+
+#[test]
+fn flip_after_english_context_gives_vietnamese() {
+    // Three English words, then a word the user wants in Vietnamese
+    let mut e = engine(false);
+    let mut s = type_word(&mut e, "user code text is ");
+    assert_eq!(s, "user code text is ");
+    assert!(flip(&mut e, &mut s));
+    assert_eq!(s, "user code text í ");
+    // and back again
+    assert!(flip(&mut e, &mut s));
+    assert_eq!(s, "user code text is ");
+}
+
+#[test]
+fn flip_a_rewritten_run_flips_every_word() {
+    let mut e = engine(false);
+    let mut s = type_word(&mut e, "this is ");
+    assert_eq!(s, "this is ");
+    assert!(flip(&mut e, &mut s));
+    assert_eq!(s, "thí í ");
+    assert!(flip(&mut e, &mut s));
+    assert_eq!(s, "this is ");
+}
+
+#[test]
+fn flip_teaches_the_next_word() {
+    // After the user picks Vietnamese, the next ambiguous word follows
+    let mut e = engine(true);
+    let mut s = type_word(&mut e, "is ");
+    assert_eq!(s, "is ");
+    assert!(flip(&mut e, &mut s));
+    assert_eq!(s, "í ");
+    s.push_str(&type_word(&mut e, "or "));
+    assert_eq!(s, "í ỏ ");
+}
+
+#[test]
+fn flip_only_right_after_the_word() {
+    let mut e = engine(false);
+    let mut s = type_word(&mut e, "is a");
+    assert!(!flip(&mut e, &mut s), "a key was typed since the word ended");
+    let mut e = engine(false);
+    let mut s = type_word(&mut e, "tooi ");
+    assert!(!flip(&mut e, &mut s), "not an ambiguous word");
+    let mut e = engine(false);
+    let mut s = type_word(&mut e, "text ");
+    assert!(!flip(&mut e, &mut s), "English-only word has no Vietnamese form");
+}
+
 #[test]
 fn user_slang_unaffected() {
     for default_english in [true, false] {
