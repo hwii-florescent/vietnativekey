@@ -4863,6 +4863,16 @@ impl Engine {
                 .any(|c| c.tone == tone::CIRCUMFLEX || c.tone == tone::HORN || c.stroke)
     }
 
+    /// Sum of the last three word votes: > 0 leans English, < 0 leans Vietnamese, 0 = no lean.
+    fn lang_score(&self) -> i32 {
+        self.lang_ctx
+            .iter()
+            .rev()
+            .take(3)
+            .map(|&english| if english { 1 } else { -1 })
+            .sum()
+    }
+
     /// Majority of the last three word votes; no votes → the configured default.
     fn ambiguous_prefers_english(&self) -> bool {
         let score: i32 = self
@@ -5010,6 +5020,17 @@ impl Engine {
         // no mark was ever applied, so the result stays "forr" (not collapsed to "for")
         if !self.had_any_transform {
             return None;
+        }
+
+        // English word that only LOOKS Vietnamese (just -> jút, fist -> fít, user -> uẻ): the typed keys
+        // are a real English word and the result is not a real Vietnamese word, merely one tone mark
+        // away from valid spelling. Prefer English unless the line is clearly Vietnamese.
+        if is_word_complete
+            && !self.is_ambiguous_word()
+            && self.is_ambiguous_loose()
+            && self.lang_score() >= 0
+        {
+            return self.build_raw_chars_exact();
         }
 
         // Words valid in both languages (is/í, or/ỏ, mix/mĩ): the line's language context decides.
@@ -6403,8 +6424,7 @@ impl Engine {
         let base = &chars[..n - 1];
         let base_keys: Vec<u16> = base.iter().map(|c| c.key).collect();
         let base_tones: Vec<u8> = base.iter().map(|c| c.tone).collect();
-        if !is_valid_with_tones_and_foreign(&base_keys, &base_tones, self.foreign_ok())
-        {
+        if !is_valid_with_tones_and_foreign(&base_keys, &base_tones, self.foreign_ok()) {
             return false;
         }
 

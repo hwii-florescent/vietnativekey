@@ -60,3 +60,21 @@ fn normal_vietnamese_unaffected_by_any_mask() {
         assert_eq!(run(true, letters, "tooi "), "tôi ");
     }
 }
+
+#[test]
+fn english_words_that_only_look_vietnamese_stay_english() {
+    // "just"->"jút", "fist"->"fít" with all foreign letters on: real English words whose Vietnamese
+    // reading is not a word. Also inside an English sentence.
+    for letters in [0b1111, J | F, F] {
+        assert_eq!(run(true, letters, "just "), "just ", "letters={letters}");
+        assert_eq!(run(true, letters, "fist "), "fist ", "letters={letters}");
+        assert_eq!(
+            run(true, letters, "user code just fist text "),
+            "user code just fist text ",
+            "letters={letters}"
+        );
+    }
+    // ...while words the user really means as Vietnamese slang keep working
+    assert_eq!(run(true, 0b1111, "zui zer "), "zui zẻ ");
+    assert_eq!(run(true, 0b1111, "ddoiwjiiiiiii "), "đợiiiiiiii ");
+}
