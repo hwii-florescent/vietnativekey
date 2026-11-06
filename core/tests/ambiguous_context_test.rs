@@ -157,13 +157,19 @@ fn flip_teaches_the_next_word() {
 fn flip_only_right_after_the_word() {
     let mut e = engine(false);
     let mut s = type_word(&mut e, "is a");
-    assert!(!flip(&mut e, &mut s), "a key was typed since the word ended");
+    assert!(
+        !flip(&mut e, &mut s),
+        "a key was typed since the word ended"
+    );
     let mut e = engine(false);
     let mut s = type_word(&mut e, "tooi ");
     assert!(!flip(&mut e, &mut s), "not an ambiguous word");
     let mut e = engine(false);
     let mut s = type_word(&mut e, "text ");
-    assert!(!flip(&mut e, &mut s), "English-only word has no Vietnamese form");
+    assert!(
+        !flip(&mut e, &mut s),
+        "English-only word has no Vietnamese form"
+    );
 }
 
 #[test]

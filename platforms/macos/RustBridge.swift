@@ -1425,6 +1425,7 @@ private func matchesModifierOnlyShortcut(flags: CGEventFlags) -> Bool {
 
 /// Trigger restore shortcut - restore raw ASCII and clear buffer
 private func triggerRestoreShortcut(flags: CGEventFlags, proxy: CGEventTapProxy) {
+    Log.info("restore key pressed")
     let shift = flags.contains(.maskShift)
     let caps = shift || flags.contains(.maskAlphaShift)
     // Don't bypass IME for restore shortcut - modifiers are part of the shortcut itself
