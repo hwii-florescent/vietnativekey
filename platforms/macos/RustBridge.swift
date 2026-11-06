@@ -1678,6 +1678,7 @@ private func keyboardCallback(
         // This handles: "chào " + backspace to delete space and enter word
         // Skip restore if just clicked (user may be deleting a selection)
         if !skipWordRestoreAfterClick, let word = getWordToRestoreOnBackspace() {
+            Log.info("restoreWord from screen: '\(word)'")
             RustBridge.restoreWord(word)
         }
         // Don't reset skipWordRestoreAfterClick here - keep skipping until a real letter is typed
