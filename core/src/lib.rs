@@ -302,6 +302,18 @@ pub extern "C" fn ime_allow_foreign_consonants(enabled: bool) {
     }
 }
 
+/// Choose which of z, w, j, f may start a word when foreign consonants are allowed.
+///
+/// `mask` bits: 1 = z, 2 = w, 4 = j, 8 = f (15 = all, the default). Has no effect while
+/// `ime_allow_foreign_consonants` is off. No-op if engine not initialized.
+#[no_mangle]
+pub extern "C" fn ime_foreign_letters(mask: u8) {
+    let mut guard = lock_engine();
+    if let Some(ref mut e) = *guard {
+        e.set_foreign_letters(mask);
+    }
+}
+
 /// Clear the input buffer.
 ///
 /// Call on word boundaries (space, punctuation).

@@ -373,6 +373,9 @@ pub struct Engine {
     /// Allow foreign consonants (z, w, j, f) as valid initial consonants
     /// When true, these letters are accepted as Vietnamese consonants for loanwords
     allow_foreign_consonants: bool,
+    /// Which foreign letters may start a word when `allow_foreign_consonants` is on:
+    /// bit 0 = z, bit 1 = w, bit 2 = j, bit 3 = f. Default: all four.
+    foreign_letters: u8,
 }
 
 impl Default for Engine {
@@ -423,6 +426,7 @@ impl Engine {
             auto_capitalize_used: false,
             saw_sentence_ending: false,
             allow_foreign_consonants: false, // Default: OFF
+            foreign_letters: 0b1111,         // all of z/w/j/f once the option is on
         }
     }
 
@@ -488,9 +492,30 @@ impl Engine {
         self.allow_foreign_consonants = enabled;
     }
 
+    /// Choose which foreign letters may start a word (bit 0 z, 1 w, 2 j, 3 f). Needs
+    /// `allow_foreign_consonants` on: e.g. mask z only -> "zui zẻ" works while "for" stays "for".
+    pub fn set_foreign_letters(&mut self, mask: u8) {
+        self.foreign_letters = mask & 0b1111;
+    }
+
     /// Get whether foreign consonants are allowed
     pub fn allow_foreign_consonants(&self) -> bool {
         self.allow_foreign_consonants
+    }
+
+    /// Foreign initials are accepted for the word in the buffer: the option is on AND the word's
+    /// first letter (if it is z/w/j/f) is one the user allowed. Other first letters are unaffected.
+    fn foreign_ok(&self) -> bool {
+        if !self.allow_foreign_consonants {
+            return false;
+        }
+        match self.buf.get(0).map(|c| c.key) {
+            Some(keys::Z) => self.foreign_letters & 0b0001 != 0,
+            Some(keys::W) => self.foreign_letters & 0b0010 != 0,
+            Some(keys::J) => self.foreign_letters & 0b0100 != 0,
+            Some(keys::F) => self.foreign_letters & 0b1000 != 0,
+            _ => true,
+        }
     }
 
     pub fn shortcuts(&self) -> &ShortcutTable {
@@ -1868,7 +1893,7 @@ impl Engine {
                 // BUT: Allow circumflex trigger patterns even if they look invalid now
                 // ALSO: Allow Vietnamese triple-o words (đoòng) which have literal double-o
                 if !has_circumflex_trigger_pattern
-                    && !is_valid_with_foreign(&buffer_keys, self.allow_foreign_consonants)
+                    && !is_valid_with_foreign(&buffer_keys, self.foreign_ok())
                     && !self.is_vietnamese_triple_o_word()
                 {
                     return None;
@@ -1936,7 +1961,7 @@ impl Engine {
             && has_vowel
             && !has_circumflex_trigger_pattern
             && !self.is_vietnamese_triple_o_word()
-            && !is_valid_for_transform_with_foreign(&buffer_keys, self.allow_foreign_consonants)
+            && !is_valid_for_transform_with_foreign(&buffer_keys, self.foreign_ok())
         {
             return None;
         }
@@ -2001,7 +2026,7 @@ impl Engine {
         if !self.free_tone_enabled
             && !is_valid_for_transform_with_options(
                 &buffer_keys,
-                self.allow_foreign_consonants,
+                self.foreign_ok(),
                 self.allows_kong_circumflex(tone_type),
             )
         {
@@ -3178,7 +3203,7 @@ impl Engine {
             && !has_stroke_transforms
             && !is_valid_for_transform_with_options(
                 &buffer_keys,
-                self.allow_foreign_consonants,
+                self.foreign_ok(),
                 self.allows_kan_nang(mark_val),
             )
         {
@@ -4816,7 +4841,7 @@ impl Engine {
         !self.buf.is_empty()
             && self.had_any_transform
             && english_dict::is_english_word(&self.get_raw_input_string())
-            && (dictionary::is_vietnamese(&self.buf.to_full_string(), self.allow_foreign_consonants)
+            && (dictionary::is_vietnamese(&self.buf.to_full_string(), self.foreign_ok())
                 // two-letter words (or→ỏ, of→ò) are real syllables the dictionary may lack
                 || (self.raw_input.len() <= 2 && !self.is_buffer_invalid_vietnamese()))
             && !self
@@ -6002,7 +6027,7 @@ impl Engine {
         // If word is in Vietnamese dictionary, it's definitely valid Vietnamese.
         if self.english_auto_restore {
             let buffer_str = self.buf.to_full_string();
-            if dictionary::is_vietnamese(&buffer_str, self.allow_foreign_consonants) {
+            if dictionary::is_vietnamese(&buffer_str, self.foreign_ok()) {
                 return false; // Valid VN word in dictionary
             }
 
@@ -6056,7 +6081,7 @@ impl Engine {
         if !is_valid_with_tones_and_options(
             &buffer_keys,
             &buffer_tones,
-            self.allow_foreign_consonants,
+            self.foreign_ok(),
             self.is_supported_nonstandard_k_word(),
         ) {
             return true;
@@ -6378,7 +6403,7 @@ impl Engine {
         let base = &chars[..n - 1];
         let base_keys: Vec<u16> = base.iter().map(|c| c.key).collect();
         let base_tones: Vec<u8> = base.iter().map(|c| c.tone).collect();
-        if !is_valid_with_tones_and_foreign(&base_keys, &base_tones, self.allow_foreign_consonants)
+        if !is_valid_with_tones_and_foreign(&base_keys, &base_tones, self.foreign_ok())
         {
             return false;
         }

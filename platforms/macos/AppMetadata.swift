@@ -89,6 +89,8 @@ enum SettingsKey {
     static let launchAtLoginUserDisabled = "gonhanh.launchAtLogin.userDisabled"
     static let soundEnabled = "gonhanh.soundEnabled"
     static let allowForeignConsonants = "gonhanh.allowForeignConsonants"
+    /// Which of z/w/j/f may start a word when foreign consonants are allowed, e.g. "zj" (default all)
+    static let foreignLetters = "gonhanh.foreignLetters"
     static let advancedMode = "gonhanh.advancedMode"
     static let perAppProfiles = "gonhanh.perAppProfiles"
     static let disablePanelDetection = "gonhanh.disablePanelDetection"

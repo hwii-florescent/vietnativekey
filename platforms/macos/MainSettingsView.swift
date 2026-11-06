@@ -173,6 +173,14 @@ class AppState: ObservableObject {
         }
     }
 
+    /// Which of z/w/j/f may start a word when foreign consonants are allowed (letters kept in a string)
+    @Published var foreignLetters: String = "zwjf" {
+        didSet {
+            UserDefaults.standard.set(foreignLetters, forKey: SettingsKey.foreignLetters)
+            RustBridge.setForeignLetters(foreignLetters)
+        }
+    }
+
     @Published var toggleShortcut: KeyboardShortcut {
         didSet {
             toggleShortcut.save()
@@ -277,6 +285,7 @@ class AppState: ObservableObject {
         }
         soundEnabled = defaults.bool(forKey: SettingsKey.soundEnabled)
         allowForeignConsonants = defaults.bool(forKey: SettingsKey.allowForeignConsonants)
+        foreignLetters = defaults.string(forKey: SettingsKey.foreignLetters) ?? "zwjf"
         advancedMode = defaults.bool(forKey: SettingsKey.advancedMode)
         disablePanelDetection = defaults.bool(forKey: SettingsKey.disablePanelDetection)
         restartOnClose = defaults.bool(forKey: SettingsKey.restartOnClose)
@@ -312,6 +321,7 @@ class AppState: ObservableObject {
         RustBridge.setEnglishAutoRestore(englishAutoRestore)
         updateAutoCapitalizeEngine()
         RustBridge.setAllowForeignConsonants(allowForeignConsonants)
+        RustBridge.setForeignLetters(foreignLetters)
     }
 
     /// Update auto-capitalize engine state based on global setting and current app exclusion
@@ -637,6 +647,38 @@ struct SettingsRow<Content: View>: View {
         HStack { content }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
+    }
+}
+
+/// Pick which of z/w/j/f may start a word (e.g. z for "zui" but not f, so "for" stays "for")
+struct ForeignLettersRow: View {
+    @ObservedObject var appState: AppState
+
+    private func binding(_ letter: Character) -> Binding<Bool> {
+        Binding(
+            get: { appState.foreignLetters.contains(letter) },
+            set: { on in
+                var set = Set(appState.foreignLetters)
+                if on { set.insert(letter) } else { set.remove(letter) }
+                appState.foreignLetters = "zwjf".filter { set.contains($0) }
+            }
+        )
+    }
+
+    var body: some View {
+        SettingsRow {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Chọn phụ âm ngoại").font(.system(size: 13))
+                Text("Chỉ bật chữ bạn cần, ví dụ z cho \"zui\" nhưng tắt f để \"for\" không thành \"fỏ\"")
+                    .font(.system(size: 11)).foregroundColor(Color(NSColor.secondaryLabelColor))
+            }
+            Spacer()
+            HStack(spacing: 6) {
+                ForEach(["z", "w", "j", "f"], id: \.self) { letter in
+                    Toggle(letter, isOn: binding(Character(letter))).toggleStyle(.button)
+                }
+            }
+        }
     }
 }
 
@@ -1070,6 +1112,10 @@ struct SettingsPageView: View {
                 SettingsToggleRow("Đặt dấu kiểu mới", subtitle: "oà thay vì òa, uý thay vì úy", isOn: $appState.modernTone)
                 Divider().padding(.leading, 12)
                 SettingsToggleRow("Cho phép phụ âm ngoại", subtitle: "z, w, j, f làm phụ âm đầu", isOn: $appState.allowForeignConsonants)
+                if appState.allowForeignConsonants {
+                    Divider().padding(.leading, 12)
+                    ForeignLettersRow(appState: appState)
+                }
                 Divider().padding(.leading, 12)
                 AutoCapitalizeRow(appState: appState)
             }

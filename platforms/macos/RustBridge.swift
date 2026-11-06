@@ -604,6 +604,7 @@ private let FLAG_KEY_CONSUMED: UInt8 = 0x01 // Key was consumed by shortcut, don
 @_silgen_name("ime_enabled") private func ime_enabled(_ enabled: Bool)
 @_silgen_name("ime_ambiguous_default_english") private func ime_ambiguous_default_english(_ english: Bool)
 @_silgen_name("ime_flip_last") private func ime_flip_last() -> UnsafeMutablePointer<ImeResult>?
+@_silgen_name("ime_foreign_letters") private func ime_foreign_letters(_ mask: UInt8)
 
 /// Terminal apps (incl. xterm.js ones). Almost everything typed there is English, and AX text is unreliable.
 private let terminalBundleIds: Set<String> = [
@@ -730,6 +731,15 @@ class RustBridge {
     static func setAllowForeignConsonants(_ enabled: Bool) {
         ime_allow_foreign_consonants(enabled)
         Log.info("Allow foreign consonants: \(enabled)")
+    }
+
+    /// Which of z/w/j/f may start a word (letters in `letters`, e.g. "zj"); needs the option above on
+    static func setForeignLetters(_ letters: String) {
+        let lower = letters.lowercased()
+        let mask: UInt8 = (lower.contains("z") ? 1 : 0) | (lower.contains("w") ? 2 : 0)
+            | (lower.contains("j") ? 4 : 0) | (lower.contains("f") ? 8 : 0)
+        ime_foreign_letters(mask)
+        Log.info("Foreign letters: \(lower)")
     }
 
     static func clearBuffer() {

@@ -44,6 +44,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             SettingsKey.autoCapitalize: false,
             SettingsKey.soundEnabled: false,
             SettingsKey.allowForeignConsonants: false,
+            SettingsKey.foreignLetters: "zwjf",
             SettingsKey.advancedMode: false,
             SettingsKey.sessionTapMode: false,
         ])
