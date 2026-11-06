@@ -745,14 +745,6 @@ class RustBridge {
         Log.info("Foreign letters: \(lower)")
     }
 
-    /// Words valid in both languages (is/í, có/cos) with no language clue yet: English when the
-    /// "English by default" setting is on or the app is a terminal, Vietnamese otherwise.
-    static func applyAmbiguousDefault(bundleId: String?) {
-        let english = AppState.shared.englishDefault || (bundleId.map { terminalBundleIds.contains($0) } ?? false)
-        ime_ambiguous_default_english(english)
-        Log.info("Ambiguous default: \(english ? "English" : "Vietnamese")")
-    }
-
     /// Words taught with the flip key (left Option) live here, one line each; only English-dictionary words.
     static var learnFilePath: String {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -2460,7 +2452,8 @@ class PerAppModeManager {
 
         Log.refresh() // Re-check debug log file existence on app switch
         RustBridge.clearBuffer()
-        RustBridge.applyAmbiguousDefault(bundleId: bundleId)
+        // Words valid in both languages (is/í, or/ỏ): English by default in terminals, Vietnamese elsewhere
+        ime_ambiguous_default_english(terminalBundleIds.contains(bundleId))
         clearDetectionCache() // Clear injection method cache on app switch
 
         // Snapshot per-app profile for keystroke hot path (thread-safe read)

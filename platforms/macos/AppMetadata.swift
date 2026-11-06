@@ -91,8 +91,6 @@ enum SettingsKey {
     static let allowForeignConsonants = "gonhanh.allowForeignConsonants"
     /// Which of z/w/j/f may start a word when foreign consonants are allowed, e.g. "zj" (default all)
     static let foreignLetters = "gonhanh.foreignLetters"
-    /// Words valid in both languages start English in every app (not only terminals)
-    static let englishDefault = "gonhanh.englishDefault"
     static let advancedMode = "gonhanh.advancedMode"
     static let perAppProfiles = "gonhanh.perAppProfiles"
     static let disablePanelDetection = "gonhanh.disablePanelDetection"

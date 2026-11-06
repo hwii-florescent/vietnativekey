@@ -173,14 +173,6 @@ class AppState: ObservableObject {
         }
     }
 
-    /// Ambiguous words (có/cos, lá/las) start English with no language clue yet, in every app
-    @Published var englishDefault: Bool = true {
-        didSet {
-            UserDefaults.standard.set(englishDefault, forKey: SettingsKey.englishDefault)
-            RustBridge.applyAmbiguousDefault(bundleId: NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
-        }
-    }
-
     /// Which of z/w/j/f may start a word when foreign consonants are allowed (letters kept in a string)
     @Published var foreignLetters: String = "zwjf" {
         didSet {
@@ -294,7 +286,6 @@ class AppState: ObservableObject {
         soundEnabled = defaults.bool(forKey: SettingsKey.soundEnabled)
         allowForeignConsonants = defaults.bool(forKey: SettingsKey.allowForeignConsonants)
         foreignLetters = defaults.string(forKey: SettingsKey.foreignLetters) ?? "zwjf"
-        englishDefault = defaults.bool(forKey: SettingsKey.englishDefault)
         advancedMode = defaults.bool(forKey: SettingsKey.advancedMode)
         disablePanelDetection = defaults.bool(forKey: SettingsKey.disablePanelDetection)
         restartOnClose = defaults.bool(forKey: SettingsKey.restartOnClose)
@@ -1146,8 +1137,6 @@ struct SettingsPageView: View {
                     Divider().padding(.leading, 12)
                     ForeignLettersRow(appState: appState)
                 }
-                Divider().padding(.leading, 12)
-                SettingsToggleRow("Mặc định tiếng Anh", subtitle: "Từ có cả hai nghĩa (có/cos, lá/las) giữ tiếng Anh cho đến khi câu có tiếng Việt", isOn: $appState.englishDefault)
                 Divider().padding(.leading, 12)
                 LearnedWordsRow()
                 Divider().padding(.leading, 12)
