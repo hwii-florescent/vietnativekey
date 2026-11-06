@@ -269,7 +269,8 @@ class MenuBarController: NSObject, NSWindowDelegate {
         RustBridge.setAllowForeignConsonants(appState.allowForeignConsonants)
         RustBridge.setForeignLetters(appState.foreignLetters)
         RustBridge.setLearnFile()
-        RustBridge.applyAmbiguousDefault(bundleId: NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
+        RustBridge.applyAmbiguousDefault(
+            bundleId: NSWorkspace.shared.frontmostApplication?.bundleIdentifier, englishDefault: appState.englishDefault)
 
         // Sync shortcuts and start per-app mode manager
         appState.syncShortcutsToEngine()

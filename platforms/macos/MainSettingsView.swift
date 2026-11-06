@@ -177,7 +177,8 @@ class AppState: ObservableObject {
     @Published var englishDefault: Bool = true {
         didSet {
             UserDefaults.standard.set(englishDefault, forKey: SettingsKey.englishDefault)
-            RustBridge.applyAmbiguousDefault(bundleId: NSWorkspace.shared.frontmostApplication?.bundleIdentifier)
+            RustBridge.applyAmbiguousDefault(
+                bundleId: NSWorkspace.shared.frontmostApplication?.bundleIdentifier, englishDefault: englishDefault)
         }
     }
 

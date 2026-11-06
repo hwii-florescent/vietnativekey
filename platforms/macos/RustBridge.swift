@@ -747,8 +747,9 @@ class RustBridge {
 
     /// Words valid in both languages (is/í, có/cos) with no language clue yet: English when the
     /// "English by default" setting is on or the app is a terminal, Vietnamese otherwise.
-    static func applyAmbiguousDefault(bundleId: String?) {
-        let english = AppState.shared.englishDefault || (bundleId.map { terminalBundleIds.contains($0) } ?? false)
+    static func applyAmbiguousDefault(bundleId: String?, englishDefault: Bool) {
+        // englishDefault is passed in: AppState.shared is not safe to read while AppState is initializing
+        let english = englishDefault || (bundleId.map { terminalBundleIds.contains($0) } ?? false)
         ime_ambiguous_default_english(english)
         Log.info("Ambiguous default: \(english ? "English" : "Vietnamese")")
     }
@@ -2460,7 +2461,7 @@ class PerAppModeManager {
 
         Log.refresh() // Re-check debug log file existence on app switch
         RustBridge.clearBuffer()
-        RustBridge.applyAmbiguousDefault(bundleId: bundleId)
+        RustBridge.applyAmbiguousDefault(bundleId: bundleId, englishDefault: AppState.shared.englishDefault)
         clearDetectionCache() // Clear injection method cache on app switch
 
         // Snapshot per-app profile for keystroke hot path (thread-safe read)
