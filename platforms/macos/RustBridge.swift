@@ -1259,6 +1259,9 @@ private var secondaryShortcutObserver: NSObjectProtocol?
 private var skipWordRestoreAfterClick = false
 /// Track Control key state to detect keydown for buffer clearing (Issue #150)
 private var wasControlPressed = false
+/// Right Option (keycode 61) was pressed during the current modifier chord. The restore key counts
+/// only the LEFT Option: right Option stays free (e.g. as a Meta/Alt key in terminals).
+private var rightOptionInChord = false
 
 // MARK: - Word Restore Support
 
@@ -1541,13 +1544,17 @@ private func keyboardCallback(
             RustBridge.clearBuffer()
         }
         wasControlPressed = isControlNowPressed
+        if event.getIntegerValueField(.keyboardEventKeycode) == 61 { rightOptionInChord = true }
+        defer { if flags.intersection(kModifierMask).isEmpty { rightOptionInChord = false } }
 
         // Fire toggle/restore only on a clean press-and-release of the exact combo
         // (see ModifierChordTracker).
         if let peak = modifierChord.modifiersChanged(to: flags.intersection(kModifierMask)) {
             // Chord completed cleanly - evaluate against the peak modifiers held.
+            let usesRightOption = rightOptionInChord && peak.contains(.maskAlternate)
             if AppState.shared.restoreShortcutEnabled,
                currentRestoreShortcut.isModifierOnly,
+               !usesRightOption,
                currentRestoreShortcut.matchesModifierOnly(flags: peak)
             {
                 triggerRestoreShortcut(flags: flags, proxy: proxy)
