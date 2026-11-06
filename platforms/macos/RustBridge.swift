@@ -2304,8 +2304,22 @@ class PerAppModeManager {
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
-                  let bundleId = app.bundleIdentifier else { return }
+            guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            else { return }
+            Log.info("activate: name='\(app.localizedName ?? "nil")' bundleId=\(app.bundleIdentifier ?? "nil") exe=\(app.executableURL?.path ?? "nil")")
+            guard let bundleId = app.bundleIdentifier else {
+                // No bundle ID (e.g. some Wine/CrossOver game processes): we cannot tell what it is, so fail
+                // closed. Give it its own key and keep Vietnamese OFF until the user toggles it on there.
+                let key = "noid:\(app.localizedName ?? app.executableURL?.lastPathComponent ?? "?")"
+                let seenBefore = AppState.shared.hasPerAppMode(bundleId: key)
+                self?.handleAppSwitch(key)
+                if !seenBefore {
+                    RustBridge.setEnabled(false)
+                    AppState.shared.setEnabledSilently(false)
+                    AppState.shared.savePerAppMode(bundleId: key, enabled: false)
+                }
+                return
+            }
             SpecialPanelAppDetector.updateLastFrontMostApp(bundleId)
             SpecialPanelAppDetector.invalidateCache()
             self?.handleAppSwitch(bundleId)
