@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/github/downloads/khaphanspace/gonhanh.org/total?label=Downloads" />
+  <img src="https://img.shields.io/github/downloads/hwii-florescent/vietnativekey/total?label=Downloads" />
   <img src="https://img.shields.io/badge/License-BSD--3--Clause-blue.svg" alt="License: BSD-3-Clause">
   <img src="https://img.shields.io/badge/Platform-macOS-000000?logo=apple&logoColor=white" />
   <img src="https://img.shields.io/badge/Platform-Linux-FCC624?logo=linux&logoColor=black" />
@@ -73,8 +73,8 @@ brew install --cask gonhanh
 
 |  Nền tảng   | Trạng thái  |                                               Tải xuống                                                | Hướng dẫn                                |
 | :---------: | :---------: | :----------------------------------------------------------------------------------------------------: | :--------------------------------------- |
-|  **macOS**  | ✅ Sẵn sàng | [📥 Tải GoNhanh.dmg](https://github.com/khaphanspace/gonhanh.org/releases/latest/download/GoNhanh.dmg) | [Xem hướng dẫn](docs/install-macos.md)   |
-| **Linux x86_64** | 🧪 Beta | [📥 Tải gonhanh-linux.tar.gz](https://github.com/khaphanspace/gonhanh.org/releases/latest/download/gonhanh-linux.tar.gz) | [Xem hướng dẫn](docs/install-linux.md) |
+|  **macOS**  | ✅ Sẵn sàng | [📥 Tải GoNhanh.dmg](https://github.com/hwii-florescent/vietnativekey/releases/latest/download/GoNhanh.dmg) | [Xem hướng dẫn](docs/install-macos.md)   |
+| **Linux x86_64** | 🧪 Beta | [📥 Tải gonhanh-linux.tar.gz](https://github.com/hwii-florescent/vietnativekey/releases/latest/download/gonhanh-linux.tar.gz) | [Xem hướng dẫn](docs/install-linux.md) |
 | **Windows** |   🧪 Beta   |                                                   —                                                    | [Xem hướng dẫn](docs/install-windows.md) |
 
 <details>
@@ -189,7 +189,7 @@ Nếu các bạn thấy phần mềm hữu ích có thể [ủng hộ tôi tại
 
 ## ⭐ Star History
 
-[![Star History Chart](https://star-history.dera.page/svg?repos=khaphanspace/gonhanh.org&type=Timeline&legend=bottom-right)](https://star-history.dera.page/#khaphanspace/gonhanh.org&type=Timeline&legend=bottom-right)
+[![Star History Chart](https://star-history.dera.page/svg?repos=hwii-florescent/vietnativekey&type=Timeline&legend=bottom-right)](https://star-history.dera.page/#hwii-florescent/vietnativekey&type=Timeline&legend=bottom-right)
 
 ---
 

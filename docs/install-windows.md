@@ -36,8 +36,8 @@
 
 ## Theo dõi
 
-- [Releases](https://github.com/khaphanspace/gonhanh.org/releases)
-- [GitHub Issues](https://github.com/khaphanspace/gonhanh.org/issues)
+- [Releases](https://github.com/hwii-florescent/vietnativekey/releases)
+- [GitHub Issues](https://github.com/hwii-florescent/vietnativekey/issues)
 
 ---
 
@@ -52,7 +52,7 @@
 - [Visual Studio 2022](https://visualstudio.microsoft.com/) (C++ & .NET workload)
 
 ```powershell
-git clone https://github.com/khaphanspace/gonhanh.org.git
+git clone https://github.com/hwii-florescent/vietnativekey.git
 cd gonhanh.org/platforms/windows
 cargo build --release
 ```

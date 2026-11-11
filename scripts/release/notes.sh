@@ -50,7 +50,7 @@ COMMIT_COUNT=$(echo "$COMMITS" | wc -l | tr -d ' ')
 info "📊 Found $COMMIT_COUNT commits"
 
 # Resolve GitHub usernames for each commit (PR → commit hash fallback)
-REPO="khaphanspace/gonhanh.org"
+REPO="hwii-florescent/vietnativekey"
 FORMATTED_COMMITS=$(echo "$COMMITS" | while IFS='|' read -r msg hash author; do
     login=""
     # Try 1: PR author (most accurate for external contributors)
@@ -90,7 +90,7 @@ OUTPUT FORMAT - Follow this EXACTLY:
 ### 🐛 Bug Fixes
 - Fix description here
 
-**Full Changelog**: https://github.com/khaphanspace/gonhanh.org/compare/$FROM_REF...$VERSION
+**Full Changelog**: https://github.com/$REPO/compare/$FROM_REF...$VERSION
 
 RULES:
 1. Output ONLY markdown, start with '## What's Changed'

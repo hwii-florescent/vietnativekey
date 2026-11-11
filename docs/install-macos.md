@@ -12,7 +12,7 @@ Sau đó cấp quyền: System Settings → Privacy & Security → Accessibility
 
 ### Cách 2: Tải thủ công
 
-1. **Tải về:** [GoNhanh.dmg](https://github.com/khaphanspace/gonhanh.org/releases/latest/download/GoNhanh.dmg)
+1. **Tải về:** [GoNhanh.dmg](https://github.com/hwii-florescent/vietnativekey/releases/latest/download/GoNhanh.dmg)
 
 2. **Cài đặt:** Mở file `.dmg` → Kéo vào **Applications**
 

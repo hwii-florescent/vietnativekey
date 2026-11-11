@@ -779,8 +779,8 @@ class RustBridge {
         ime_clear()
     }
 
-    /// Swap the ambiguous word(s) just committed between English and Vietnamese (is <-> í).
-    /// nil when there is nothing to flip.
+    /// Swap the word left of the cursor (being typed, or finished with one space after it) between
+    /// English and Vietnamese (is <-> í, tooi <-> tôi). nil when there is nothing to flip.
     static func flipLast() -> (Int, [Character])? {
         guard isInitialized, let ptr = ime_flip_last() else { return nil }
         defer { ime_free(ptr) }
@@ -1477,7 +1477,7 @@ private func triggerRestoreShortcut(flags: CGEventFlags, proxy: CGEventTapProxy)
     // Don't bypass IME for restore shortcut - modifiers are part of the shortcut itself
     // Always pass ctrl=false so engine performs the restore action
     let (method, delays) = detectMethod()
-    // Right after finishing a word that is valid in both languages (is/í): swap it, either way.
+    // The word left of the cursor (being typed, or one space back) has another form: swap it, either way.
     if let (bs, chars) = RustBridge.flipLast() {
         Log.info("flip: bs=\(bs) text='\(String(chars))'")
         sendReplacement(backspace: bs, chars: chars, method: method, delays: delays, proxy: proxy)

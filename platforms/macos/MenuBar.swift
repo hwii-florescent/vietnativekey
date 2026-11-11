@@ -511,10 +511,11 @@ class MenuBarController: NSObject, NSWindowDelegate {
         // Close window (⌘W)
         appMenu.addItem(NSMenuItem(title: "Đóng cửa sổ", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w"))
 
-        // Quit (⌘Q)
+        // ⌘Q while settings is open only closes the window; the app keeps running in the menu bar.
+        // Quitting stays available from the status item menu.
         let quitItem = NSMenuItem(
-            title: "Thoát \(AppMetadata.name)",
-            action: #selector(NSApplication.terminate(_:)),
+            title: "Đóng cài đặt",
+            action: #selector(NSWindow.performClose(_:)),
             keyEquivalent: "q"
         )
         appMenu.addItem(quitItem)

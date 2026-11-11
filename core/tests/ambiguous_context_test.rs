@@ -163,7 +163,11 @@ fn flip_only_right_after_the_word() {
     );
     let mut e = engine(false);
     let mut s = type_word(&mut e, "tooi ");
-    assert!(!flip(&mut e, &mut s), "not an ambiguous word");
+    assert!(
+        flip(&mut e, &mut s),
+        "any word with another form flips, ambiguous or not"
+    );
+    assert_eq!(s, "tooi ");
     let mut e = engine(false);
     let mut s = type_word(&mut e, "text ");
     assert!(

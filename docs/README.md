@@ -166,8 +166,8 @@ Always include documentation updates in the same PR as code changes.
 
 ## Contact & Support
 
-- **Issues**: https://github.com/khaphanspace/gonhanh.org/issues
-- **Discussions**: https://github.com/khaphanspace/gonhanh.org/discussions
+- **Issues**: https://github.com/hwii-florescent/vietnativekey/issues
+- **Discussions**: https://github.com/hwii-florescent/vietnativekey/discussions
 - **License**: GPL-3.0-or-later
 
 ## Statistics
@@ -190,4 +190,4 @@ Always include documentation updates in the same PR as code changes.
 **Last Updated**: 2025-12-10
 **Status**: Production-ready for team development
 **Platforms**: macOS (v1.0.21+), Windows (production), Linux (planned)
-**Repository**: https://github.com/khaphanspace/gonhanh.org
+**Repository**: https://github.com/hwii-florescent/vietnativekey

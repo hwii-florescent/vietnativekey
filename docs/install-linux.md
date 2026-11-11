@@ -7,7 +7,7 @@ method khác.
 ## Cài đặt
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scripts/setup/linux.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hwii-florescent/vietnativekey/main/scripts/setup/linux.sh | bash
 ```
 
 Sau khi cài:
@@ -17,7 +17,7 @@ Sau khi cài:
 3. Chạy `gn on` để chọn GoNhanh.
 
 Có thể tải archive thủ công tại
-[`gonhanh-linux.tar.gz`](https://github.com/khaphanspace/gonhanh.org/releases/latest/download/gonhanh-linux.tar.gz),
+[`gonhanh-linux.tar.gz`](https://github.com/hwii-florescent/vietnativekey/releases/latest/download/gonhanh-linux.tar.gz),
 giải nén và chạy `gonhanh-linux/install.sh`.
 
 ## Sử dụng

@@ -5,7 +5,7 @@ Thank you for your interest in contributing! 🎉
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/khaphanspace/gonhanh.org`
+2. Clone your fork: `git clone https://github.com/hwii-florescent/vietnativekey`
 3. Run setup: `./scripts/setup/macos.sh`
 4. Create a branch: `git checkout -b feature/my-feature`
 

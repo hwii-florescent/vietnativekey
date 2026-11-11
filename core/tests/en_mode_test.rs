@@ -111,3 +111,92 @@ fn enter_starts_a_new_line() {
     assert_eq!(en("tooi ddang\ncos "), "tôi ddang\ncos ");
     assert_eq!(en("tooi ddang \ncos "), "tôi đang \ncos ");
 }
+
+#[test]
+fn backspace_right_after_a_conversion_reverts_to_the_typed_english() {
+    // '<' is Backspace in type_word. The Backspace also eats the space, like Backspace after a word does elsewhere.
+    assert_eq!(en("truowfng <"), "truowfng");
+    assert_eq!(en("ddi ddaau <"), "đi ddaau"); // only the last word reverts
+    assert_eq!(en("ddi ddaau <<"), "đi ddaa"); // then it is ordinary backspacing
+                                               // The word stays English: typing on continues it, and it is not re-converted on the next Space.
+    assert_eq!(en("truowfng <x "), "truowfngx ");
+    assert_eq!(en("truowfng < "), "truowfng ");
+    // Any key in between means the conversion is final.
+    assert_eq!(en("truowfng a<"), "trường ");
+    // A word that was never converted: Backspace only deletes the space.
+    assert_eq!(en("hello <"), "hello");
+}
+
+/// Type `input`, press the flip key, and return the screen. `engine` picks the mode and settings.
+fn typed_then_flipped(mut e: Engine, input: &str) -> String {
+    let mut screen = type_word(&mut e, input);
+    let r = e.flip_last_ambiguous();
+    if r.action == gonhanh_core::engine::Action::Send as u8 {
+        for _ in 0..r.backspace {
+            screen.pop();
+        }
+        screen.extend((0..r.count as usize).filter_map(|i| char::from_u32(r.chars[i])));
+    }
+    screen
+}
+
+#[test]
+fn flip_works_on_the_word_left_of_the_cursor_in_english_mode() {
+    // Being typed, or one space after, whether or not the word was converted on its own
+    assert_eq!(typed_then_flipped(en_engine(), "truowfng"), "trường");
+    assert_eq!(typed_then_flipped(en_engine(), "truowfng "), "truowfng "); // was converted: flips back
+    assert_eq!(typed_then_flipped(en_engine(), "hello cos "), "hello có "); // English kept: flips to Vietnamese
+    assert_eq!(typed_then_flipped(en_engine(), "vars "), "vá "); // code-like: never auto-converted, still flippable
+                                                                 // Detection off: nothing is converted by itself, the flip key still can
+    let mut off = Engine::new();
+    off.set_enabled(false);
+    assert_eq!(typed_then_flipped(off, "tooi "), "tôi ");
+}
+
+#[test]
+fn flip_ignores_what_it_cannot_convert_or_cannot_reach() {
+    for s in [
+        "hello",
+        "hello ",
+        "x",
+        "truowfng  ",
+        "truowfng a",
+        "truowfng,",
+        "truowfng1",
+        "a/truowfng",
+    ] {
+        let mut e = en_engine();
+        type_word(&mut e, s);
+        assert_eq!(e.flip_last_ambiguous().action, 0, "{s}");
+    }
+}
+
+#[test]
+fn flip_toggles_and_a_word_can_flip_again_after_backspace_reverts_it() {
+    let mut e = en_engine();
+    assert_eq!(type_word(&mut e, "truowfng"), "truowfng");
+    let mut screen = String::from("truowfng");
+    for want in ["trường", "truowfng", "trường"] {
+        let r = e.flip_last_ambiguous();
+        for _ in 0..r.backspace {
+            screen.pop();
+        }
+        screen.extend((0..r.count as usize).filter_map(|i| char::from_u32(r.chars[i])));
+        assert_eq!(screen, want);
+    }
+    // converted on Space, Backspace reverts it, flip converts it again (no space left to touch)
+    assert_eq!(typed_then_flipped(en_engine(), "truowfng <"), "trường");
+}
+
+#[test]
+fn flip_works_in_vietnamese_mode_for_any_word() {
+    let vn = || {
+        let mut e = Engine::new();
+        e.set_english_auto_restore(true);
+        e
+    };
+    assert_eq!(typed_then_flipped(vn(), "Vieetj"), "Vieetj"); // being typed: back to the keys
+    assert_eq!(typed_then_flipped(vn(), "Vieetj "), "Vieetj "); // finished, one space: same
+    assert_eq!(typed_then_flipped(vn(), "hello "), "hello "); // nothing to flip
+    assert_eq!(typed_then_flipped(vn(), "Vieetj  "), "Việt  "); // two spaces: out of reach
+}

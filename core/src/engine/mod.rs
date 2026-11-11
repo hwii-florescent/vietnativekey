@@ -295,6 +295,9 @@ pub struct Engine {
     /// (what is on screen, the other form, screen shows English). Lets the flip key swap
     /// them either way. Cleared by the next key, a click or an app switch.
     flip_words: Vec<(Vec<char>, Vec<char>, bool)>,
+    /// `flip_words` is a word the cursor sits right after (no space typed yet), so flipping it
+    /// must not touch or add a space.
+    flip_open: bool,
     /// Words the user taught with the flip key: typed keys (lowercase) -> true = English.
     /// Only words flipped by hand get in. The latest choice wins, regardless of context.
     learned: std::collections::HashMap<String, bool>,
@@ -416,6 +419,7 @@ impl Engine {
             ambiguous_default_english: false,
             amb_run: Vec::new(),
             flip_words: Vec::new(),
+            flip_open: false,
             learned: std::collections::HashMap::new(),
             learn_path: None,
             detect_vn_in_en_mode: false,
@@ -455,6 +459,7 @@ impl Engine {
         self.enabled = enabled;
         if !enabled {
             self.buf.clear();
+            self.flip_words.clear(); // a Vietnamese-mode word must not be "reverted" by English mode's Backspace
             self.word_history.clear();
             self.spaces_after_commit = 0;
         }
@@ -516,15 +521,11 @@ impl Engine {
         self.en_dirty = false;
     }
 
-    /// English mode, Space pressed after `word`: decide whether those keys were Vietnamese.
-    /// English stays the default: a word is only rewritten when its Telex reading is a real
-    /// Vietnamese dictionary word AND the keys are not an English word (or the line is clearly
-    /// Vietnamese, or the user taught it). Rewrites only on Space, never on Enter or punctuation.
+    /// Telex reading of `word` (typed keys) when it can be converted at all: returns the throwaway
+    /// engine that did it, the typed text and the Vietnamese text. None when nothing would change
+    /// (no transform, or not a possible Vietnamese syllable).
     /// ponytail: builds a throwaway Engine per candidate word; cache one if profiling ever cares.
-    fn en_mode_on_space(&mut self, word: &[(u16, bool)]) -> Option<Result> {
-        if !self.detect_vn_in_en_mode || word.len() < 2 || word.len() > 24 {
-            return None;
-        }
+    fn telex_reading(&self, word: &[(u16, bool)]) -> Option<(Engine, Vec<char>, String)> {
         let raw: Vec<char> = word
             .iter()
             .filter_map(|&(k, c)| utils::key_to_char(k, c))
@@ -548,6 +549,20 @@ impl Engine {
         {
             return None;
         }
+        Some((shadow, raw, vn_str))
+    }
+
+    /// English mode, Space pressed after `word`: decide whether those keys were Vietnamese.
+    /// English stays the default: a word is only rewritten when its Telex reading is a real
+    /// Vietnamese dictionary word AND the keys are not an English word (or the line is clearly
+    /// Vietnamese, or the user taught it). Rewrites only on Space, never on Enter or punctuation.
+    /// Whenever the word has a Telex reading the flip key can swap it, even when nothing is rewritten.
+    fn en_mode_on_space(&mut self, word: &[(u16, bool)]) -> Option<Result> {
+        if word.len() < 2 || word.len() > 24 {
+            return None;
+        }
+        let (shadow, raw, vn_str) = self.telex_reading(word)?;
+        let lower: String = raw.iter().collect::<String>().to_lowercase();
         let vn: Vec<char> = vn_str.chars().collect();
         // Two tone keys in one word (vars -> vả -> vá, refs) is code, not Telex: a Vietnamese typist
         // presses one. Count tone letters the conversion swallowed.
@@ -559,16 +574,16 @@ impl Engine {
                 typed.saturating_sub(kept)
             })
             .sum();
-        if swallowed > 1 {
-            return None;
-        }
         let english_word = english_dict::is_english_word_wide(&lower);
         let vn_is_word = dictionary::is_vietnamese(&vn_str, shadow.foreign_ok());
-        let convert = match self.learned.get(&lower) {
-            Some(&english) => !english,
-            None => vn_is_word && (!english_word || self.lang_score() <= -2),
-        };
-        if convert || english_word {
+        // Code-like or detection off: never rewritten on its own, and no vote on the line's language.
+        let judge = self.detect_vn_in_en_mode && swallowed <= 1;
+        let convert = judge
+            && match self.learned.get(&lower) {
+                Some(&english) => !english,
+                None => vn_is_word && (!english_word || self.lang_score() <= -2),
+            };
+        if judge && (convert || english_word) {
             self.lang_ctx.push(!convert);
             let excess = self.lang_ctx.len().saturating_sub(3);
             self.lang_ctx.drain(..excess);
@@ -617,9 +632,14 @@ impl Engine {
 
     /// Remember that `raw` (the typed keys) should be English / Vietnamese from now on.
     /// Only called for a word the user flipped by hand, and only plain letters are stored.
+    /// In Vietnamese mode only a real English word can be taught as English: flipping a plain
+    /// Vietnamese word to see its keys must not make it stop converting.
     fn learn_word(&mut self, raw: &[char], english: bool) {
         let word: String = raw.iter().collect::<String>().to_lowercase();
-        if !(2..=24).contains(&word.len()) || !word.bytes().all(|b| b.is_ascii_lowercase()) {
+        if !(2..=24).contains(&word.len())
+            || !word.bytes().all(|b| b.is_ascii_lowercase())
+            || (english && self.enabled && !english_dict::is_english_word_wide(&word))
+        {
             return;
         }
         if let Some(path) = &self.learn_path {
@@ -826,7 +846,9 @@ impl Engine {
     /// * `ctrl` - true if Cmd/Ctrl/Alt is pressed (bypasses IME)
     /// * `shift` - true if Shift key is pressed (for symbols like @, #, $)
     pub fn on_key_ext(&mut self, key: u16, caps: bool, ctrl: bool, shift: bool) -> Result {
-        self.flip_words.clear(); // any key moves on from the last committed word
+        // Any key moves on from the last committed word; English mode still needs it to undo a conversion.
+        let last_flip = std::mem::take(&mut self.flip_words);
+        self.flip_open = false;
         if key == keys::DELETE {
             self.amb_run.clear(); // screen no longer matches what the run remembers
         }
@@ -891,6 +913,18 @@ impl Engine {
             // branch below which clears the whole prefix, so the shortcut never
             // matches on the following Space.
             if key == keys::DELETE {
+                // Backspace straight after a Telex word was converted: back to what was typed (the
+                // Backspace eats the space too). The word stays English, so Space won't convert it again.
+                if let [(vn, raw, false)] = &last_flip[..] {
+                    self.shortcut_prefix = raw.iter().collect();
+                    self.en_dirty = true;
+                    self.flip_words = vec![(raw.clone(), vn.clone(), true)];
+                    self.flip_open = true;
+                    self.lang_ctx.push(true);
+                    let excess = self.lang_ctx.len().saturating_sub(3);
+                    self.lang_ctx.drain(..excess);
+                    return Result::send(vn.len() as u8 + 1, raw);
+                }
                 self.shortcut_prefix.pop();
                 self.en_raw.pop();
                 return Result::none();
@@ -992,7 +1026,6 @@ impl Engine {
             }
             self.note_word_for_context();
             let was_ambiguous = self.is_ambiguous_loose();
-            let was_clash = was_ambiguous || self.is_english_clash();
             let vn_word: Vec<char> = self.buf.to_full_string().chars().collect();
             let raw_word = self.collect_raw_chars();
             let rewritten = self.try_ambiguous_run_rewrite();
@@ -1000,8 +1033,8 @@ impl Engine {
                 Some(rewrite) => rewrite,
                 None => self.try_auto_restore_on_space(),
             };
-            if self.flip_words.is_empty() && was_clash {
-                // Not a run rewrite: one ambiguous word, shown as English (restored) or Vietnamese (kept)
+            if self.flip_words.is_empty() && vn_word != raw_word {
+                // Not a run rewrite: one word, shown as English (restored) or Vietnamese (kept)
                 let english = restore_result.action != 0;
                 self.flip_words = if english {
                     vec![(raw_word.clone(), vn_word.clone(), true)]
@@ -5110,23 +5143,52 @@ impl Engine {
         Some(Result::send(backspaces as u8, &out))
     }
 
-    /// Swap the ambiguous word(s) just committed between English and Vietnamese (flip key).
-    /// Only valid right after the space, before any other key. The user's choice also votes,
-    /// so later ambiguous words on the line follow it. Flipping again swaps back.
+    /// The word still being typed (cursor right after it) as (what is on screen, the other form,
+    /// screen shows English). None when the other form is the same or can't exist.
+    fn open_word_for_flip(&self) -> Option<(Vec<char>, Vec<char>, bool)> {
+        if self.enabled {
+            let shown: Vec<char> = self.buf.to_full_string().chars().collect();
+            let raw = self.collect_raw_chars();
+            return (!shown.is_empty() && shown != raw).then_some((shown, raw, false));
+        }
+        if self.en_dirty || self.en_raw.len() < 2 || self.en_raw.len() > 24 {
+            return None;
+        }
+        let (_, raw, vn) = self.telex_reading(&self.en_raw)?;
+        Some((raw, vn.chars().collect(), true))
+    }
+
+    /// Swap the word left of the cursor between English (as typed) and Vietnamese (flip key).
+    /// That is the word being typed, or the one just finished with a single space after it, as long
+    /// as no other key was typed since. A word with no other form is ignored. The user's choice also
+    /// votes, so later ambiguous words on the line follow it. Flipping again swaps back.
     pub fn flip_last_ambiguous(&mut self) -> Result {
         if self.flip_words.is_empty() {
-            return Result::none();
+            let Some(word) = self.open_word_for_flip() else {
+                return Result::none();
+            };
+            self.flip_words = vec![word];
+            self.flip_open = true;
         }
+        // A finished word swaps with its space; an open one has none.
+        let tail = usize::from(!self.flip_open);
         let mut backspaces = 0usize;
         let mut out: Vec<char> = Vec::new();
         for (shown, other, _) in &self.flip_words {
-            backspaces += shown.len() + 1; // the word and its space
+            backspaces += shown.len() + tail;
             out.extend(other);
-            out.push(' ');
+            if tail == 1 {
+                out.push(' ');
+            }
         }
         if backspaces > u8::MAX as usize || out.len() > u8::MAX as usize {
             self.flip_words.clear();
             return Result::none();
+        }
+        if self.flip_open {
+            // The screen word no longer matches the buffers: start over from here, English mode leaves it alone.
+            self.clear();
+            self.en_dirty = !self.enabled;
         }
         for word in &mut self.flip_words {
             std::mem::swap(&mut word.0, &mut word.1);
@@ -5157,6 +5219,7 @@ impl Engine {
     /// Forget the just-committed words (click, app switch, shortcut): the screen may no longer match.
     pub fn clear_flip(&mut self) {
         self.flip_words.clear();
+        self.flip_open = false;
         self.amb_run.clear();
     }
 

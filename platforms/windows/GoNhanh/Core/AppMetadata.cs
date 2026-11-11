@@ -29,9 +29,9 @@ public static class AppMetadata
     public static readonly string AuthorLinkedin = "https://www.linkedin.com/in/khaphanspace";
 
     // Links
-    public static readonly string Website = "https://gonhanh.org";
-    public static readonly string Repository = "https://github.com/khaphanspace/gonhanh.org";
-    public static readonly string IssuesUrl = "https://github.com/khaphanspace/gonhanh.org/issues";
+    public static readonly string Website = "https://github.com/hwii-florescent/vietnativekey";
+    public static readonly string Repository = "https://github.com/hwii-florescent/vietnativekey";
+    public static readonly string IssuesUrl = "https://github.com/hwii-florescent/vietnativekey/issues";
 
     // Legal
     public static readonly string Copyright = $"Copyright (c) 2025 {Author}. All rights reserved.";

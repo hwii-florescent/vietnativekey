@@ -213,4 +213,4 @@ Examples:
 **Last Updated**: 2025-12-14
 **Status**: Active Development
 **Platforms**: macOS (v1.0.21+), Windows (production), Linux (beta)
-**Repository**: https://github.com/khaphanspace/gonhanh.org
+**Repository**: https://github.com/hwii-florescent/vietnativekey

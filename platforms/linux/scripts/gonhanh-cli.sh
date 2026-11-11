@@ -111,7 +111,7 @@ case "${1:-toggle}" in
         ;;
     update)
         command -v curl >/dev/null 2>&1 || fail "Không tìm thấy curl"
-        curl -fsSL https://raw.githubusercontent.com/khaphanspace/gonhanh.org/main/scripts/setup/linux.sh | bash
+        curl -fsSL https://raw.githubusercontent.com/hwii-florescent/vietnativekey/main/scripts/setup/linux.sh | bash
         ;;
     uninstall)
         [[ -x "$STATE_DIR/install.sh" ]] || fail "Không tìm thấy trình gỡ cài đặt"

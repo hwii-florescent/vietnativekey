@@ -387,10 +387,11 @@ pub extern "C" fn ime_clear_all() {
     }
 }
 
-/// Flip the ambiguous word(s) just committed between English and Vietnamese (is <-> í).
+/// Flip the word left of the cursor between English (as typed) and Vietnamese (is <-> í, tooi <-> tôi).
+/// That is the word being typed, or one just finished with a single space after it.
 ///
 /// Returns a `Result` to apply (caller must free with `ime_free`); its `action` is 0 when there is
-/// nothing to flip (a key was typed since, or the last word was not ambiguous).
+/// nothing to flip (another key was typed since, or the word has no other form).
 /// `null` if engine not initialized.
 #[no_mangle]
 pub extern "C" fn ime_flip_last() -> *mut Result {

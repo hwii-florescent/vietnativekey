@@ -15,7 +15,9 @@ fn engine() -> Engine {
 fn run(prefix: &str, word: &str) -> String {
     let mut e = engine();
     let all = type_word(&mut e, &format!("{prefix}{word} "));
-    all[type_word(&mut engine(), prefix).len()..].trim_end().to_string()
+    all[type_word(&mut engine(), prefix).len()..]
+        .trim_end()
+        .to_string()
 }
 
 fn temp_file(name: &str) -> String {
@@ -57,8 +59,11 @@ fn learned_word_beats_context() {
     let mut e = engine();
     type_word(&mut e, "nuts ");
     e.flip_last_ambiguous(); // teach: nuts = English
-    // Even in a clearly Vietnamese line it stays English now
-    assert_eq!(type_word(&mut e, "tooi ddang hocj nuts "), "tooi ddang hocj nuts ".replace("tooi ddang hocj", "tôi đang học"));
+                             // Even in a clearly Vietnamese line it stays English now
+    assert_eq!(
+        type_word(&mut e, "tooi ddang hocj nuts "),
+        "tooi ddang hocj nuts ".replace("tooi ddang hocj", "tôi đang học")
+    );
 }
 
 #[test]
@@ -69,7 +74,9 @@ fn only_english_dictionary_words_are_stored() {
     type_word(&mut e, "tooi "); // Vietnamese, not an English word: nothing to flip or teach
     e.flip_last_ambiguous();
     assert_eq!(e.learned_count(), 0);
-    assert!(std::fs::read_to_string(&file).unwrap_or_default().is_empty());
+    assert!(std::fs::read_to_string(&file)
+        .unwrap_or_default()
+        .is_empty());
     let _ = std::fs::remove_file(&file);
 }
 
@@ -98,5 +105,8 @@ fn clash_words_can_be_flipped_by_hand() {
     let mut e = engine();
     assert_eq!(type_word(&mut e, "how "), "hơ ");
     let r = e.flip_last_ambiguous();
-    assert!(r.action != 0, "flip must work on horn/circumflex clashes too");
+    assert!(
+        r.action != 0,
+        "flip must work on horn/circumflex clashes too"
+    );
 }

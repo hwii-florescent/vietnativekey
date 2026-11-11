@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["Kha Phan <nhatkha1407@gmail.com>"]
 license = "GPL-3.0-or-later"
 description = "Gõ Nhanh - Vietnamese input method core engine"
-repository = "https://github.com/khaphanspace/gonhanh.org"
+repository = "https://github.com/hwii-florescent/vietnativekey"
 
 [lib]
 name = "gonhanh_core"

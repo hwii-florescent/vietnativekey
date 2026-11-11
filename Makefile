@@ -4,6 +4,9 @@
 
 .DEFAULT_GOAL := help
 
+# This repo's GitHub slug (release links, CI triggers)
+REPO := hwii-florescent/vietnativekey
+
 # Version from git tag
 TAG := $(shell git describe --tags --abbrev=0 --match "v*" --exclude "v*-pre*" 2>/dev/null || echo v0.0.0)
 VER := $(subst v,,$(TAG))
@@ -126,8 +129,9 @@ install: build
 	@osascript -e 'tell application "System Events"' -e 'repeat with i from (count of every login item) to 1 by -1' -e 'set li to login item i' -e 'if name of li is "GoNhanh" and path of li contains "/build/" then delete login item i' -e 'end repeat' -e 'end tell' 2>/dev/null || true
 	@killall GoNhanh 2>/dev/null || true
 	@sleep 0.5
-	@cp -r platforms/macos/build/Release/GoNhanh.app /Applications/
-	@open /Applications/GoNhanh.app
+	@mkdir -p /Applications/VietNativeKey.app
+	@cp -R platforms/macos/build/Release/GoNhanh.app/. /Applications/VietNativeKey.app/
+	@open /Applications/VietNativeKey.app
 
 dmg: build ## Create DMG installer
 	@./scripts/release/dmg-background.sh
@@ -146,7 +150,7 @@ release: ## Patch release (1.0.9 → 1.0.10)
 	@./scripts/release/notes.sh v$(NEXT_PATCH) > /tmp/release_notes.md
 	@git tag -a v$(NEXT_PATCH) -F /tmp/release_notes.md --cleanup=verbatim
 	@git push origin main v$(NEXT_PATCH)
-	@echo "→ https://github.com/khaphanspace/gonhanh.org/releases"
+	@echo "→ https://github.com/$(REPO)/releases"
 
 release-minor: ## Minor release (1.0.9 → 1.1.0)
 	@git pull --rebase origin main --tags
@@ -155,7 +159,7 @@ release-minor: ## Minor release (1.0.9 → 1.1.0)
 	@./scripts/release/notes.sh v$(NEXT_MINOR) > /tmp/release_notes.md
 	@git tag -a v$(NEXT_MINOR) -F /tmp/release_notes.md --cleanup=verbatim
 	@git push origin main v$(NEXT_MINOR)
-	@echo "→ https://github.com/khaphanspace/gonhanh.org/releases"
+	@echo "→ https://github.com/$(REPO)/releases"
 
 release-major: ## Major release (1.0.9 → 2.0.0)
 	@git pull --rebase origin main --tags
@@ -164,9 +168,9 @@ release-major: ## Major release (1.0.9 → 2.0.0)
 	@./scripts/release/notes.sh v$(NEXT_MAJOR) > /tmp/release_notes.md
 	@git tag -a v$(NEXT_MAJOR) -F /tmp/release_notes.md --cleanup=verbatim
 	@git push origin main v$(NEXT_MAJOR)
-	@echo "→ https://github.com/khaphanspace/gonhanh.org/releases"
+	@echo "→ https://github.com/$(REPO)/releases"
 
 pre-release: ## Trigger pre-release build on CI
-	@gh workflow run pre-release.yml -f platform=macos -R khaphanspace/gonhanh.org
+	@gh workflow run pre-release.yml -f platform=macos -R $(REPO)
 	@echo "✅ Pre-release build triggered"
-	@echo "→ https://github.com/khaphanspace/gonhanh.org/actions/workflows/pre-release.yml"
+	@echo "→ https://github.com/$(REPO)/actions/workflows/pre-release.yml"

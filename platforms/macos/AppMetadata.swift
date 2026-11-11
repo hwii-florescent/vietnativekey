@@ -23,9 +23,9 @@ enum AppMetadata {
     static let authorEmail = "nhatkha1407@gmail.com"
 
     // Links
-    static let website = "https://gonhanh.org"
-    static let repository = "https://github.com/khaphanspace/gonhanh.org"
-    static let issuesURL = "https://github.com/khaphanspace/gonhanh.org/issues"
+    static let website = "https://github.com/hwii-florescent/vietnativekey"
+    static let repository = "https://github.com/hwii-florescent/vietnativekey"
+    static let issuesURL = "https://github.com/hwii-florescent/vietnativekey/issues"
     static let sponsorURL = "https://github.com/sponsors/khaphanspace"
     static let authorLinkedin = "https://www.linkedin.com/in/khaphanspace"
     static let voteURL = "https://unikorn.vn/p/gonhanh?ref=gonhanh"
